@@ -1,13 +1,11 @@
 package com.api.pmtool.entity;
 import com.api.pmtool.config.UserRoleMapSerializer;
 import com.api.pmtool.enums.Status;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -38,7 +36,7 @@ import org.hibernate.annotations.GenericGenerator;
 @Getter
 @Setter
 @Entity
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "userRoles"})
+//@JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "userRoles"}) 
 @Table(name = "demands")
 public class Demand extends Auditable<UUID> {
 
@@ -71,7 +69,7 @@ public class Demand extends Auditable<UUID> {
     private Status status;
     
     @OneToMany(mappedBy = "demand", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
-    private List<Comments> comments= new ArrayList<>();; // One demand has many comments
+    private List<Comments> comments= new ArrayList<>(); // One demand has many comments
 
     public void extendDueDate(Date newDueDate) {
         this.newDueDate = newDueDate;

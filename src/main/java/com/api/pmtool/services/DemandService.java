@@ -15,10 +15,7 @@ import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,8 +23,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.api.pmtool.dtos.AddCommentOnDemandDto;
 import com.api.pmtool.dtos.AssignDemandRequestDto;
+import com.api.pmtool.dtos.ChangeDemandStatusRequestDto;
 import com.api.pmtool.dtos.ChangeDueDateRequestDto;
 import com.api.pmtool.dtos.CreateDemandRequestDto;
+import com.api.pmtool.dtos.SearchDemandResponseDto;
 import com.api.pmtool.entity.Comments;
 import com.api.pmtool.entity.Demand;
 import com.api.pmtool.entity.Uploads;
@@ -37,6 +36,8 @@ import com.api.pmtool.exception.FileStorageException;
 import com.api.pmtool.repository.DemandRepository;
 import com.api.pmtool.repository.UserRepository;
 import org.apache.tika.Tika;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class DemandService {
@@ -50,7 +51,7 @@ public class DemandService {
     private static final String UPLOAD_DIRECTORY = "/Users/shyamrajsingh/Development/upload/"; // Root directory for
                                                                                                // file storage
     private final Path UPLOAD_DIR = Paths.get(UPLOAD_DIRECTORY).toAbsolutePath().normalize();
-
+    private static final Logger logger = LoggerFactory.getLogger(DemandService.class);
     @Transactional // Ensures that the entire method executes within a single transaction
     public Demand createDemand(CreateDemandRequestDto demandRequestDto) throws IOException {
         // Create a new Demand entity
@@ -152,41 +153,19 @@ public class DemandService {
     // Change the due date, add comments, and handle file storage
     @Transactional
     public void changeDueDate(ChangeDueDateRequestDto dto) throws IOException {
-        UpdateDemandDetailsAndAddComment(dto.getDemandId(),dto.getComment(), dto.getMultipartFiles(), dto.getNewDueDate());
-/*         // Fetch the demand by demandId
-        Demand demand = demandRepository.findById(dto.getDemandId())
-                .orElseThrow(() -> new IllegalArgumentException("Demand not found with ID: " + dto.getDemandId()));
-        // demand.getComments().forEach(comment -> comment.getUploads().size());
-        demand.getUserRoles().size();
-        // Extend due date using the existing method and increment dueDateChangeCount
-        demand.extendDueDate(dto.getNewDueDate());
-        // Associate the Comment with Demand
-        if (dto.getComment() != null && !dto.getComment().isEmpty()) {
-            Comments newComment = new Comments();
-            newComment.setComment(dto.getComment());
-            newComment.setDemand(demand); // Set the bidirectional relationship
-
-            List<MultipartFile> files = dto.getMultipartFiles();
-            newComment.setUploads(processFile(files, newComment)); // Set bidirectional relationship for uploads
-            // Add the new comment to the list of existing comments
-            List<Comments> currentComments = demand.getComments();
-            if (currentComments == null) {
-                currentComments = new ArrayList<>();
-            }
-            currentComments.add(newComment);
-            demand.setComments(currentComments); // Update the comments list
-        }
-        // Save the demand (this will cascade and save the new comment and upload as
-        // well)
-        demandRepository.save(demand); */
+        UpdateDemandDetailsAndAddComment(dto.getDemandId(),dto.getComment(), dto.getMultipartFiles(), dto.getNewDueDate(),null);
+    }
+    @Transactional
+    public void changeDemandStatus(ChangeDemandStatusRequestDto dto) throws IOException {
+        UpdateDemandDetailsAndAddComment(dto.getDemandId(),dto.getComment(), dto.getMultipartFiles(), null, dto.getNewStatus());
     }
     @Transactional
     public void addCommentOnDemand(AddCommentOnDemandDto dto) throws IOException {
-        UpdateDemandDetailsAndAddComment(dto.getDemandId(),dto.getComment(), dto.getMultipartFiles(), null);
+        UpdateDemandDetailsAndAddComment(dto.getDemandId(),dto.getComment(), dto.getMultipartFiles(), null, null);
     }
     // Helper function to update Demand and add comment
-    private void UpdateDemandDetailsAndAddComment(UUID demandId, String comment, List<MultipartFile> files,
-            @Nullable Date newDueDate) throws IOException {
+    private void UpdateDemandDetailsAndAddComment(UUID demandId, @Nullable String comment, @Nullable List<MultipartFile> files,
+            @Nullable Date newDueDate, @Nullable Status status) throws IOException {
         Demand demand = demandRepository.findById(demandId)
                 .orElseThrow(() -> new IllegalArgumentException("Demand not found with ID: " + demandId));
         // demand.getComments().forEach(comment -> comment.getUploads().size());
@@ -195,7 +174,10 @@ public class DemandService {
             // Extend due date using the existing method and increment dueDateChangeCount
             demand.extendDueDate(newDueDate);
         }
-
+        if (status != null) {
+            // Extend due date using the existing method and increment dueDateChangeCount
+            demand.setStatus(status); // Update the status of the demand with the new status;
+        }
         // Associate the Comment with Demand
         if (comment != null && !comment.isEmpty()) {
             Comments newComment = new Comments();
@@ -216,7 +198,7 @@ public class DemandService {
     }
 
     // Helper function to process file uploads
-    private List<Uploads> processFile(List<MultipartFile> files, Comments newComments) throws IOException {
+    private List<Uploads> processFile(@Nullable List<MultipartFile> files, @Nullable Comments newComments) throws IOException {
         List<Uploads> uploadsList = new ArrayList<>();
         if (files != null && !files.isEmpty()) {
             for (MultipartFile file : files) {
@@ -262,140 +244,17 @@ public class DemandService {
                 || contentType.equals("application/msword")
                 || contentType.equals("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
     }
-    //@Transactional
-    public Page<Demand> findDemandsByCriteria(UUID userId, String userRole, String projectName, int page, int size, String sortBy, String sortDir) {
+
+    public Page<SearchDemandResponseDto> findDemandsByCriteria(UUID userId, String role, String projectName,Pageable pageable) {
         // Create a Pageable object for pagination and sorting
-        Pageable pageable = PageRequest.of(page, size, sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending());
-
-        // Call the repository method to search demands
-        return demandRepository.searchDemands(userId, userRole, projectName, pageable);
+      //  Pageable pageable = PageRequest.of(page, size, sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending());
+        Page<SearchDemandResponseDto> demands = demandRepository.searchDemands(userId, role, projectName, pageable);
+        logger.debug("Demands fetched: {}", demands.getContent());
+        return demands;
     }
-    
 }
-
 /*
  * 
- * // Helper method to create comments with file handling
- * private List<Comments> createComments(List<CommentRequestDto> commentDtos,
- * Demand demand, User commentedBy) {
- * List<Comments> commentsList = new ArrayList<>();
- * 
- * for (CommentRequestDto commentDto : commentDtos) {
- * Comments commentEntity = new Comments();
- * commentEntity.setDemand(demand);
- * commentEntity.setCommentedBy(commentedBy);
- * commentEntity.setComments(commentDto.getComment());
- * commentEntity.setUploadDate(LocalDateTime.now());
- * 
- * // Handle file upload (if provided)
- * if (commentDto.getFile() != null && !commentDto.getFile().isEmpty()) {
- * String filePath = storeFile(commentDto.getFile(), demand.getId());
- * commentEntity.setFilePath(filePath);
- * }
- * 
- * commentsList.add(commentEntity);
- * }
- * 
- * return commentsList;
- * }
- * 
- * // Method to handle file storage
- * private String storeFile(MultipartFile file, UUID demandId) {
- * try {
- * String demandDirectoryPath = "/path/to/files/" + demandId;
- * File demandDirectory = new File(demandDirectoryPath);
- * if (!demandDirectory.exists()) {
- * demandDirectory.mkdirs();
- * }
- * 
- * String currentDateTime =
- * LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
- * String fileName = demandId + "_" + currentDateTime + "_" +
- * file.getOriginalFilename();
- * String filePath = demandDirectoryPath + "/" + fileName;
- * 
- * File destFile = new File(filePath);
- * file.transferTo(destFile);
- * 
- * return filePath;
- * } catch (IOException e) {
- * throw new FileStorageException("Failed to store file", e);
- * }
- * }
- * private String getFileExtension(String fileName) {
- * if (fileName == null || fileName.lastIndexOf('.') == -1) {
- * return "";
- * }
- * return fileName.substring(fileName.lastIndexOf('.'));
- * }
- * 
- * // Utility method to find demand by ID
- * public Demand getDemandById(UUID demandId) {
- * return demandRepository.findById(demandId)
- * .orElseThrow(() -> new ResourceNotFoundException("Demand", "id", demandId));
- * }
- * 
- * 
- * public Page<Demand> findDemandsByUserOrDepartment(UUID assigneeId, UUID
- * techLeadId, String department, Pageable pageable) {
- * User assignee = assigneeId != null ? userRepository.findById(assigneeId)
- * .orElseThrow(() -> new ResourceNotFoundException("User", "id", assigneeId)) :
- * null;
- * 
- * User techLead = techLeadId != null ? userRepository.findById(techLeadId)
- * .orElseThrow(() -> new ResourceNotFoundException("User", "id", techLeadId)) :
- * null;
- * 
- * return demandRepository.findByAssigneeOrTechLeadOrDepartment(assignee,
- * techLead, department, pageable);
- * }
- * 
- * public Demand changeDemandStatus(UUID demandId, Status newStatus) {
- * Demand demand = getDemandById(demandId);
- * demand.setStatus(newStatus);
- * return demandRepository.save(demand);
- * }
- * public Demand assignDemandToUsers(AssignDemandRequestDto dto) {
- * Demand demand = demandRepository.findById(dto.getDemandId())
- * .orElseThrow(() -> new ResourceNotFoundException("Demand", "id",
- * dto.getDemandId()));
- * 
- * User assignee = userRepository.findById(dto.getAssigneeId())
- * .orElseThrow(() -> new ResourceNotFoundException("User", "id",
- * dto.getAssigneeId()));
- * 
- * User techLead = userRepository.findById(dto.getTechLeadId())
- * .orElseThrow(() -> new ResourceNotFoundException("User", "id",
- * dto.getTechLeadId()));
- * 
- * List<Developer> developers =
- * developerRepository.findAllById(dto.getDeveloperIds());
- * 
- * demand.setAssignee(assignee);
- * demand.setTechLead(techLead);
- * demand.setDevelopers(developers);
- * demand.setStatus(Status.IN_PROGRESS); // Set status to In Progress after
- * assignment
- * 
- * return demandRepository.save(demand);
- * }
- * 
- * // Method to create a new demand
- * 
- * // Update demand project and department
- * public Demand updateDemand(UUID demandId, UpdateDemandRequestDto dto) {
- * Demand demand = demandRepository.findById(demandId)
- * .orElseThrow(() -> new ResourceNotFoundException("Demand", "id", demandId));
- * 
- * demand.setProjectName(dto.getProjectName());
- * 
- * User assignee = demand.getAssignee();
- * if (assignee != null) {
- * assignee.setDepartment(dto.getDepartmentName());
- * }
- * 
- * return demandRepository.save(demand);
- * }
  * DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 LocalDate newDueDate = LocalDate.parse("30/08/1988", formatter);
  * 
