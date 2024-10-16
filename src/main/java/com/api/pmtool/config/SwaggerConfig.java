@@ -24,5 +24,6 @@ public class SwaggerConfig {
                 .externalDocs(new ExternalDocumentation()
                         .description("Spring Boot Documentation")
                         .url("https://spring.io/projects/spring-boot"));
+                
     }
 }

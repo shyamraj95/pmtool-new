@@ -7,19 +7,17 @@ import com.api.pmtool.dtos.AssignDemandRequestDto;
 import com.api.pmtool.dtos.ChangeDemandStatusRequestDto;
 import com.api.pmtool.dtos.ChangeDueDateRequestDto;
 import com.api.pmtool.dtos.CreateDemandRequestDto;
+import com.api.pmtool.dtos.DemandCountResponseDTO;
 import com.api.pmtool.dtos.SearchDemandResponseDto;
-import com.api.pmtool.entity.Comments;
 import com.api.pmtool.entity.Demand;
-import com.api.pmtool.repository.UserRepository;
+import com.api.pmtool.enums.Status;
 import com.api.pmtool.services.DemandService;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.UUID;
-
+import java.util.Map;
 import javax.validation.Valid;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -31,7 +29,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -42,9 +39,6 @@ public class DemandController {
 
     @Autowired
     private DemandService demandService;
-
-    @Autowired
-    private UserRepository userRepository;
 
     @PostMapping(path = "/create", consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
     public ResponseEntity<Demand> createDemand(
@@ -74,7 +68,11 @@ public class DemandController {
      * }
      * }
      */
-
+@GetMapping("/counts")
+    public ResponseEntity<DemandCountResponseDTO> getDemandCounts() {
+        DemandCountResponseDTO demandCounts = demandService.getDemandCounts();
+        return ResponseEntity.ok(demandCounts);
+    }
     @PutMapping(path = "/assign", consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
     public ResponseEntity<String> assignDemand(
             @ModelAttribute("demand") @Valid AssignDemandRequestDto assignDemandRequestDto) {
@@ -134,12 +132,13 @@ public class DemandController {
     @JsonIgnoreProperties({ "comments", "comments.uploads", "role" })
     public ResponseEntity<Page<SearchDemandResponseDto>> findDemands(
             @RequestParam(value = "userId", required = false) UUID userId,
+            @RequestParam(value = "status", required = false) Status status,
             @RequestParam(value = "userRole", required = false) String userRole,
             @RequestParam(value = "projectName", required = false) String projectName,
             @PageableDefault(size = 10, sort = "projectName") Pageable pageable) {
 
         // Call service method to get the paginated and sorted demands
-        Page<SearchDemandResponseDto> demands = demandService.findDemandsByCriteria(userId, userRole, projectName,
+        Page<SearchDemandResponseDto> demands = demandService.findDemandsByCriteria(userId,status, userRole, projectName,
                 pageable);
 
         return ResponseEntity.ok(demands);

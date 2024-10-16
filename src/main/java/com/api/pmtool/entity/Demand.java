@@ -28,6 +28,7 @@ import javax.persistence.MapKeyJoinColumn;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
+import java.time.LocalDate;
 import javax.persistence.TemporalType;
 
 import org.hibernate.annotations.GenericGenerator;
@@ -49,11 +50,11 @@ public class Demand extends Auditable<UUID> {
     private String demandName;
 
     //@DateTimeFormat("dd/MM/yyyy")
-    @Temporal(TemporalType.DATE)
-    private Date dueDate;
+   // @Temporal(TemporalType.DATE)
+    private LocalDate dueDate;
 
-    @Temporal(TemporalType.DATE)
-    private Date newDueDate;
+    //@Temporal(TemporalType.DATE)
+    private LocalDate newDueDate;
     private int dueDateChangeCount = 0;
 
 
@@ -71,7 +72,7 @@ public class Demand extends Auditable<UUID> {
     @OneToMany(mappedBy = "demand", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     private List<Comments> comments= new ArrayList<>(); // One demand has many comments
 
-    public void extendDueDate(Date newDueDate) {
+    public void extendDueDate(LocalDate newDueDate) {
         this.newDueDate = newDueDate;
         this.dueDateChangeCount++;
     }

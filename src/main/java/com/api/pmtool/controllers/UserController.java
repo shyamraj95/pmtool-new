@@ -15,11 +15,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.api.pmtool.dtos.UserDto;
-
+import com.api.pmtool.dtos.UsersByRoleNameResponseDTO;
 import com.api.pmtool.entity.User;
+import com.api.pmtool.enums.UserStatus;
 import com.api.pmtool.services.UserService;
 
 
@@ -43,7 +45,25 @@ public class UserController {
         List<User> Users = userService.getAllUsers();
         return ResponseEntity.ok(Users);
     }
+    @GetMapping("/role/{roleId}")
+    public ResponseEntity<List<User>> getUsersByRoleId(@PathVariable UUID roleId) {
+        List<User> users = userService.getUsersByRoleId(roleId);
+        return ResponseEntity.ok(users);
+    }
 
+    @GetMapping("/list/role/{roleName}")
+    public ResponseEntity<List<UsersByRoleNameResponseDTO>> getUsersByRoleName(@PathVariable String roleName) {
+        List<UsersByRoleNameResponseDTO> users = userService.getUsersByRoleName(roleName);
+        if (users.isEmpty()) {
+            return ResponseEntity.noContent().build();  // Return 204 if no users are found
+        }
+        return ResponseEntity.ok(users);  // Return the list of users with the given role name
+    }
+    @PutMapping("/{userId}/status")
+    public ResponseEntity<User> changeUserStatus(@PathVariable UUID userId, @RequestParam UserStatus newStatus) {
+        User updatedUser = userService.changeUserStatus(userId, newStatus);
+        return ResponseEntity.ok(updatedUser);
+    }
     // Get User by ID
     @GetMapping("/{id}")
     public ResponseEntity<User> getUserById(@PathVariable UUID id) {
