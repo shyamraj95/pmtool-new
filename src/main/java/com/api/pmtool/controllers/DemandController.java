@@ -6,6 +6,7 @@ import com.api.pmtool.dtos.AddCommentOnDemandDto;
 import com.api.pmtool.dtos.AssignDemandRequestDto;
 import com.api.pmtool.dtos.ChangeDemandStatusRequestDto;
 import com.api.pmtool.dtos.ChangeDueDateRequestDto;
+import com.api.pmtool.dtos.ChangePriorityRequestDto;
 import com.api.pmtool.dtos.CreateDemandRequestDto;
 import com.api.pmtool.dtos.DemandCountResponseDTO;
 import com.api.pmtool.dtos.SearchDemandResponseDto;
@@ -15,8 +16,8 @@ import com.api.pmtool.services.DemandService;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.UUID;
-import java.util.Map;
 import javax.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -106,12 +107,21 @@ public class DemandController {
         }
     }
 
+    @PutMapping(path="/change-priority",consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
+    public ResponseEntity<?> changePriority(@ModelAttribute("demand") @Valid ChangePriorityRequestDto dto) {
+        try {
+            demandService.changePriority(dto);
+            return ResponseEntity.status(HttpStatus.OK).body("Priority updated successfully.");
+        } catch (IllegalArgumentException | IOException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
     @PutMapping(path = "/change-demand-status", consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
     public ResponseEntity<?> changeDemandStatus(
             @ModelAttribute("demand") @Valid ChangeDemandStatusRequestDto dto) {
         try {
             demandService.changeDemandStatus(dto);
-            return ResponseEntity.status(HttpStatus.OK).body("Due date updated successfully.");
+            return ResponseEntity.status(HttpStatus.OK).body("Status has updated successfully.");
         } catch (IllegalArgumentException | IOException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
@@ -122,7 +132,7 @@ public class DemandController {
             @ModelAttribute("demand") @Valid AddCommentOnDemandDto dto) {
         try {
             demandService.addCommentOnDemand(dto);
-            return ResponseEntity.status(HttpStatus.OK).body("Due date updated successfully.");
+            return ResponseEntity.status(HttpStatus.OK).body("Comment added on Demand successfully.");
         } catch (IllegalArgumentException | IOException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
@@ -131,15 +141,16 @@ public class DemandController {
     @GetMapping("/search")
     @JsonIgnoreProperties({ "comments", "comments.uploads", "role" })
     public ResponseEntity<Page<SearchDemandResponseDto>> findDemands(
-            @RequestParam(value = "userId", required = false) UUID userId,
+            @RequestParam(value = "pfId", required = false) String pfId,
             @RequestParam(value = "status", required = false) Status status,
             @RequestParam(value = "userRole", required = false) String userRole,
+            @RequestParam(value = "startDate", required = false) LocalDate startDate,
+            @RequestParam(value = "endDate", required = false) LocalDate endDate,
             @RequestParam(value = "projectName", required = false) String projectName,
             @PageableDefault(size = 10, sort = "projectName") Pageable pageable) {
 
         // Call service method to get the paginated and sorted demands
-        Page<SearchDemandResponseDto> demands = demandService.findDemandsByCriteria(userId,status, userRole, projectName,
-                pageable);
+        Page<SearchDemandResponseDto> demands = demandService.findDemandsByCriteria(pfId, status, userRole, projectName, startDate, endDate, pageable);
 
         return ResponseEntity.ok(demands);
     }

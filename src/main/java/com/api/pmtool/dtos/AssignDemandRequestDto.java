@@ -7,6 +7,8 @@ import javax.validation.constraints.NotNull;
 
 import org.springframework.web.multipart.MultipartFile;
 
+import com.api.pmtool.enums.Priority;
+
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
@@ -17,6 +19,9 @@ public class AssignDemandRequestDto {
 
     @NotNull(message = "Demand ID is required")
     private UUID demandId;
+
+    @NotNull(message = "Demand ID is required")
+    private Priority priority;
 
     @NotNull(message = "Assignee user ID is required")
     private UUID assigneeId;

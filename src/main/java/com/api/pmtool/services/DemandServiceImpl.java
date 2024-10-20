@@ -12,8 +12,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Date;
 import java.time.LocalDate;
 import java.time.DayOfWeek;
 
@@ -22,23 +22,26 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.api.pmtool.dtos.AddCommentOnDemandDto;
 import com.api.pmtool.dtos.AssignDemandRequestDto;
 import com.api.pmtool.dtos.ChangeDemandStatusRequestDto;
 import com.api.pmtool.dtos.ChangeDueDateRequestDto;
+import com.api.pmtool.dtos.ChangePriorityRequestDto;
 import com.api.pmtool.dtos.CreateDemandRequestDto;
 import com.api.pmtool.dtos.DemandCountResponseDTO;
 import com.api.pmtool.dtos.SearchDemandResponseDto;
 import com.api.pmtool.entity.Comments;
 import com.api.pmtool.entity.Demand;
+import com.api.pmtool.entity.ProjectEntity;
 import com.api.pmtool.entity.Uploads;
 import com.api.pmtool.entity.User;
+import com.api.pmtool.enums.Priority;
 import com.api.pmtool.enums.Status;
 import com.api.pmtool.exception.FileStorageException;
 import com.api.pmtool.repository.DemandRepository;
+import com.api.pmtool.repository.ProjectRepository;
 import com.api.pmtool.repository.UserRepository;
 import org.apache.tika.Tika;
 import org.slf4j.Logger;
@@ -52,6 +55,9 @@ public class DemandServiceImpl implements DemandService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private ProjectRepository projectRepository;
 
     private static final String UPLOAD_DIRECTORY = "/Users/shyamrajsingh/Development/upload/"; // Root directory for
                                                                                                // file storage
@@ -75,9 +81,13 @@ public class DemandServiceImpl implements DemandService {
     @Override
     @Transactional // Ensures that the entire method executes within a single transaction
     public Demand createDemand(CreateDemandRequestDto demandRequestDto) throws IOException {
+        // Fetch the associated project
+        ProjectEntity project = projectRepository.findById(demandRequestDto.getProjectId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Project not found with ID: " + demandRequestDto.getProjectId()));
         // Create a new Demand entity
         Demand demand = new Demand();
-        demand.setProjectName(demandRequestDto.getProjectName());
+        demand.setProject(project); // Associate project with demand
         demand.setDemandName(demandRequestDto.getDemandName());
         demand.setDueDate(demandRequestDto.getDueDate());
         demand.setStatus(Status.NOT_STARTED);
@@ -157,6 +167,8 @@ public class DemandServiceImpl implements DemandService {
             newUserRoles.put(developer, "DEVELOPER");
         }
         demand.setUserRoles(newUserRoles);
+        demand.setPriority(dto.getPriority()); // Set priority
+        demand.setAssignDate(LocalDate.now());
         // Associate the Comment with Demand
         if (dto.getComment() != null && !dto.getComment().isEmpty()) {
             Comments newComment = new Comments();
@@ -192,9 +204,11 @@ public class DemandServiceImpl implements DemandService {
         // Fetch the demand by its ID, including the comments and their uploads
         Demand demand = demandRepository.findByIdWithCommentsAndUploads(demandId)
                 .orElseThrow(() -> new IllegalArgumentException("Demand not found with ID: " + demandId));
-        // Initialize comments and uploads (to handle lazy loading)
-        demand.getComments().forEach(comment -> comment.getUploads().size());
-        demand.getUserRoles().size();
+         // Initialize comments and uploads (to handle lazy loading)
+         demand.getUserRoles().size();
+         demand.getProject();
+         demand.getStatusJourney().size();
+         demand.getComments().forEach(comment -> comment.getUploads().size());
         return demand;
 
     }
@@ -204,7 +218,7 @@ public class DemandServiceImpl implements DemandService {
     @Transactional
     public void changeDueDate(ChangeDueDateRequestDto dto) throws IOException {
         UpdateDemandDetailsAndAddComment(dto.getDemandId(), dto.getComment(), dto.getMultipartFiles(),
-                dto.getNewDueDate(), null);
+                dto.getNewDueDate(), null, null);
     }
 
     /**
@@ -220,7 +234,14 @@ public class DemandServiceImpl implements DemandService {
     @Transactional
     public void changeDemandStatus(ChangeDemandStatusRequestDto dto) throws IOException {
         UpdateDemandDetailsAndAddComment(dto.getDemandId(), dto.getComment(), dto.getMultipartFiles(), null,
-                dto.getNewStatus());
+                dto.getNewStatus(), null);
+    }
+
+    @Transactional
+    @Override
+    public void changePriority(ChangePriorityRequestDto dto) throws IOException {
+        UpdateDemandDetailsAndAddComment(dto.getDemandId(), dto.getComment(), dto.getMultipartFiles(), null,
+                null, dto.getNewPriority());
     }
 
     /**
@@ -233,7 +254,8 @@ public class DemandServiceImpl implements DemandService {
     @Override
     @Transactional
     public void addCommentOnDemand(AddCommentOnDemandDto dto) throws IOException {
-        UpdateDemandDetailsAndAddComment(dto.getDemandId(), dto.getComment(), dto.getMultipartFiles(), null, null);
+        UpdateDemandDetailsAndAddComment(dto.getDemandId(), dto.getComment(), dto.getMultipartFiles(), null, null,
+                null);
     }
 
     /**
@@ -262,16 +284,23 @@ public class DemandServiceImpl implements DemandService {
      */
     private void UpdateDemandDetailsAndAddComment(UUID demandId, @Nullable String comment,
             @Nullable List<MultipartFile> files,
-            @Nullable LocalDate newDueDate, @Nullable Status status) throws IOException {
+            @Nullable LocalDate newDueDate, @Nullable Status status, @Nullable Priority newPriority)
+            throws IOException {
         Demand demand = demandRepository.findById(demandId)
                 .orElseThrow(() -> new IllegalArgumentException("Demand not found with ID: " + demandId));
         // demand.getComments().forEach(comment -> comment.getUploads().size());
         demand.getUserRoles().size();
+        if (newPriority != null) {
+            // Extend due date using the existing method and increment dueDateChangeCount
+            demand.setPriority(newPriority);
+        }
         if (newDueDate != null) {
             // Extend due date using the existing method and increment dueDateChangeCount
             demand.extendDueDate(newDueDate);
         }
         if (status != null) {
+            demand.setStatusChangeDate(LocalDate.now());
+            demand.getStatusJourney().put(status, LocalDate.now());
             // Extend due date using the existing method and increment dueDateChangeCount
             demand.setStatus(status); // Update the status of the demand with the new status;
         }
@@ -373,14 +402,14 @@ public class DemandServiceImpl implements DemandService {
     /**
      * Determines whether the given MIME type is a supported content type.
      * The supported MIME types are:
-     * <ul>
-     * <li>application/pdf</li>
-     * <li>image/png</li>
-     * <li>image/jpg</li>
-     * <li>image/jpeg</li>
-     * <li>application/msword</li>
-     * <li>application/vnd.openxmlformats-officedocument.wordprocessingml.document</li>
-     * </ul>
+     * 
+     * application/pdf
+     * image/png
+     * image/jpg
+     * image/jpeg
+     * application/msword
+     * application/vnd.openxmlformats-officedocument.wordprocessingml.document
+     * 
      * 
      * @param contentType The MIME type to be checked.
      * @return {@code true} if the MIME type is supported, {@code false} otherwise.
@@ -407,11 +436,12 @@ public class DemandServiceImpl implements DemandService {
      *         if no demands are found.
      */
     @Override
-    public Page<SearchDemandResponseDto> findDemandsByCriteria(UUID userId, Status status, String role,
-            String projectName, Pageable pageable) {
+    public Page<SearchDemandResponseDto> findDemandsByCriteria(String pfId, Status status, String role,
+            String projectName,
+            LocalDate startDate, LocalDate endDate, Pageable pageable) {
         // Create a Pageable object for pagination and sorting
-        Page<SearchDemandResponseDto> demands = demandRepository.searchDemands(userId, status, role, projectName,
-                pageable);
+        Page<SearchDemandResponseDto> demands = demandRepository.searchDemands(pfId, status, role, projectName,
+                startDate, endDate, pageable);
         logger.debug("Demands fetched: {}", demands.getContent());
         return demands;
     }
@@ -431,6 +461,7 @@ public class DemandServiceImpl implements DemandService {
         return demandRepository.fetchDemandCounts(startOfWeek, endOfWeek, currentDate);
 
     }
+
 }
 /*
  * 

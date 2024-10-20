@@ -2,7 +2,7 @@ package com.api.pmtool.dtos;
 
 
 import java.util.List;
-
+import java.util.UUID;
 
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
@@ -11,6 +11,8 @@ import javax.validation.constraints.Size;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.api.pmtool.enums.DemandTypes;
+
 import java.time.LocalDate;
 import lombok.Getter;
 import lombok.Setter;
@@ -18,14 +20,15 @@ import lombok.Setter;
 @Setter
 public class CreateDemandRequestDto {
 
-    @NotBlank(message = "Project name is required")
-    private String projectName;
+    @NotNull(message = "Project id is required")
+    private UUID projectId;
+
     @NotBlank(message = "Demand name is required")
     @Size(max = 15, message = "Demand name must not exceed 15 characters")
     private String demandName;
 
-    @NotBlank(message = "Demand type is required")
-    private String demandType;
+    @NotNull(message = "Demand type is required")
+    private DemandTypes demandType;
 
     //@JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd/MM/yyyy")
     @DateTimeFormat(pattern = "dd-MM-yyyy")

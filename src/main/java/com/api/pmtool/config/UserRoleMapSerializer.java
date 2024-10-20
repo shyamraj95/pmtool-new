@@ -20,4 +20,3 @@ public class UserRoleMapSerializer extends JsonSerializer<Map<User, String>> {
         gen.writeEndObject();
     }
 }
-

@@ -15,6 +15,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class UserDto {
+    private String pfId;
     private String fullName;
     private Set<UUID> roleIds; 
     private String mobileNumber;

@@ -38,6 +38,10 @@ public class User extends Auditable<UUID> {
     @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
     @Column(columnDefinition = "UUID")
     private UUID id;
+
+    @Column(unique=true)
+    private String pfId;
+
     private String fullName;
 
     @JsonBackReference
