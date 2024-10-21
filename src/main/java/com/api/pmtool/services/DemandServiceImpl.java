@@ -1,6 +1,7 @@
 package com.api.pmtool.services;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -40,12 +41,16 @@ import com.api.pmtool.entity.User;
 import com.api.pmtool.enums.Priority;
 import com.api.pmtool.enums.Status;
 import com.api.pmtool.exception.FileStorageException;
+import com.api.pmtool.exception.ResourceNotFoundException;
 import com.api.pmtool.repository.DemandRepository;
 import com.api.pmtool.repository.ProjectRepository;
+import com.api.pmtool.repository.UploadRepository;
 import com.api.pmtool.repository.UserRepository;
 import org.apache.tika.Tika;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 
 @Service
 public class DemandServiceImpl implements DemandService {
@@ -58,6 +63,9 @@ public class DemandServiceImpl implements DemandService {
 
     @Autowired
     private ProjectRepository projectRepository;
+
+    @Autowired
+    private UploadRepository uploadRepository;
 
     private static final String UPLOAD_DIRECTORY = "/Users/shyamrajsingh/Development/upload/"; // Root directory for
                                                                                                // file storage
@@ -204,11 +212,23 @@ public class DemandServiceImpl implements DemandService {
         // Fetch the demand by its ID, including the comments and their uploads
         Demand demand = demandRepository.findByIdWithCommentsAndUploads(demandId)
                 .orElseThrow(() -> new IllegalArgumentException("Demand not found with ID: " + demandId));
-         // Initialize comments and uploads (to handle lazy loading)
-         demand.getUserRoles().size();
-         demand.getProject();
-         demand.getStatusJourney().size();
-         demand.getComments().forEach(comment -> comment.getUploads().size());
+        // Initialize comments and uploads (to handle lazy loading)
+        demand.getUserRoles().size();
+        demand.getProject();
+        demand.getStatusJourney().size();
+        // demand.getComments().forEach(comment -> comment.getUploads().size());
+        demand.getComments().forEach(comment -> {
+            // Loop through uploads within each comment
+            comment.getUploads().forEach(upload -> {
+                // Remove unnecessary fields
+                upload.setCreatedBy(null);
+                upload.setCreatedAt(null);
+                // upload.setModifiedBy(null);
+                // upload.setModifiedAt(null);
+                // upload.setFileName(null);  // Set fileName to null
+                upload.setFilePath(null);  // Set filePath to null
+            });
+        });
         return demand;
 
     }
@@ -242,6 +262,22 @@ public class DemandServiceImpl implements DemandService {
     public void changePriority(ChangePriorityRequestDto dto) throws IOException {
         UpdateDemandDetailsAndAddComment(dto.getDemandId(), dto.getComment(), dto.getMultipartFiles(), null,
                 null, dto.getNewPriority());
+    }
+
+    @Override
+    public Resource downloadUploadedFiles(UUID fileId) throws ResourceNotFoundException, MalformedURLException {
+        Uploads upload = uploadRepository.findById(fileId)
+                .orElseThrow(() -> new ResourceNotFoundException("File not found with ID: " + fileId, null, null));
+
+        // Use the stored file path to serve the file
+        Path filePath = Paths.get(upload.getFilePath()).normalize();
+
+        Resource resource = new UrlResource(filePath.toUri());
+
+        if (!resource.exists()) {
+            throw new ResourceNotFoundException("File not found with ID: " + fileId, null, null);
+        }
+        return resource;
     }
 
     /**

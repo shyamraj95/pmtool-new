@@ -14,8 +14,8 @@ public class UserRoleMapSerializer extends JsonSerializer<Map<User, String>> {
         gen.writeStartObject();
         for (Map.Entry<User, String> entry : userRoles.entrySet()) {
             // Serialize user ID or fullName instead of toString()
-            gen.writeFieldName(entry.getKey().getFullName()); // or use getId() for IDs
-            gen.writeString(entry.getValue());
+            gen.writeFieldName(entry.getValue()); 
+            gen.writeString(entry.getKey().getFullName()); // or use getId() for IDs
         }
         gen.writeEndObject();
     }

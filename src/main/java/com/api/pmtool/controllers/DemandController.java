@@ -20,9 +20,11 @@ import java.time.LocalDate;
 import java.util.UUID;
 import javax.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -69,11 +71,12 @@ public class DemandController {
      * }
      * }
      */
-@GetMapping("/counts")
+    @GetMapping("/counts")
     public ResponseEntity<DemandCountResponseDTO> getDemandCounts() {
         DemandCountResponseDTO demandCounts = demandService.getDemandCounts();
         return ResponseEntity.ok(demandCounts);
     }
+
     @PutMapping(path = "/assign", consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
     public ResponseEntity<String> assignDemand(
             @ModelAttribute("demand") @Valid AssignDemandRequestDto assignDemandRequestDto) {
@@ -107,7 +110,7 @@ public class DemandController {
         }
     }
 
-    @PutMapping(path="/change-priority",consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
+    @PutMapping(path = "/change-priority", consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
     public ResponseEntity<?> changePriority(@ModelAttribute("demand") @Valid ChangePriorityRequestDto dto) {
         try {
             demandService.changePriority(dto);
@@ -116,6 +119,7 @@ public class DemandController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
     }
+
     @PutMapping(path = "/change-demand-status", consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
     public ResponseEntity<?> changeDemandStatus(
             @ModelAttribute("demand") @Valid ChangeDemandStatusRequestDto dto) {
@@ -138,6 +142,19 @@ public class DemandController {
         }
     }
 
+    @GetMapping(path = "/download/{fileId}", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
+    public ResponseEntity<?> downloadUploadedFile(@PathVariable UUID fileId) throws IOException {
+        try {
+            Resource resource = demandService.downloadUploadedFiles(fileId);
+            // Create HTTP headers with a Content-Disposition for the downloaded file
+            HttpHeaders headers = new HttpHeaders();
+            headers.add("Content-Disposition", "attachment; filename=\"" + fileId + "\"");
+            return ResponseEntity.status(HttpStatus.OK).body(resource);
+        } catch (IllegalArgumentException | IOException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
+
     @GetMapping("/search")
     @JsonIgnoreProperties({ "comments", "comments.uploads", "role" })
     public ResponseEntity<Page<SearchDemandResponseDto>> findDemands(
@@ -150,7 +167,8 @@ public class DemandController {
             @PageableDefault(size = 10, sort = "projectName") Pageable pageable) {
 
         // Call service method to get the paginated and sorted demands
-        Page<SearchDemandResponseDto> demands = demandService.findDemandsByCriteria(pfId, status, userRole, projectName, startDate, endDate, pageable);
+        Page<SearchDemandResponseDto> demands = demandService.findDemandsByCriteria(pfId, status, userRole, projectName,
+                startDate, endDate, pageable);
 
         return ResponseEntity.ok(demands);
     }
