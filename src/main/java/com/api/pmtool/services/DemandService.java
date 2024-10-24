@@ -9,6 +9,7 @@ import com.api.pmtool.dtos.CreateDemandRequestDto;
 import com.api.pmtool.dtos.DemandCountResponseDTO;
 import com.api.pmtool.dtos.SearchDemandResponseDto;
 import com.api.pmtool.entity.Demand;
+import com.api.pmtool.entity.User;
 import com.api.pmtool.enums.Status;
 import com.api.pmtool.exception.ResourceNotFoundException;
 
@@ -16,7 +17,7 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.time.LocalDate;
 import java.util.UUID;
-
+import java.util.List;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -38,7 +39,8 @@ Page<SearchDemandResponseDto> findDemandsByCriteria(String pfId, Status status, 
     LocalDate startDate, LocalDate endDate, Pageable pageable);
 
 Demand getDemandByDemandId(UUID demandId) throws IllegalArgumentException;
-
+List<Demand> getAllDemands();
+List<User> getUsersByDemandId(UUID demandId);
 DemandCountResponseDTO getDemandCounts();
 
 Resource downloadUploadedFiles(UUID demandId)throws ResourceNotFoundException, MalformedURLException;

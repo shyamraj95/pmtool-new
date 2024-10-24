@@ -13,6 +13,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
+
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
@@ -232,7 +234,14 @@ public class DemandServiceImpl implements DemandService {
         return demand;
 
     }
+    @Override
+    public List<User> getUsersByDemandId(UUID demandId) {
+        Demand demand = demandRepository.findById(demandId)
+                .orElseThrow(() -> new IllegalArgumentException("Demand not found with ID: " + demandId));
 
+        // Extract users from the userRoles map in the Demand entity
+        return demand.getUserRoles().keySet().stream().collect(Collectors.toList());
+    }
     // Change the due date, add comments, and handle file storage
     @Override
     @Transactional
@@ -458,7 +467,19 @@ public class DemandServiceImpl implements DemandService {
                 || contentType.equals("application/msword")
                 || contentType.equals("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
     }
-
+@Transactional
+@Override
+public List<Demand> getAllDemands() {
+    List<Demand> demands = demandRepository.findAll();
+    demands.forEach((Demand demand) -> {
+        demand.getUserRoles().size();
+        demand.getProject();
+        demand.getStatusJourney().size();
+        demand.getComments().forEach(comment -> comment.getUploads().size());  
+    });
+    logger.debug("Demands fetched: {}", demands);
+    return demands;
+}
     /**
      * Retrieves a page of {@link SearchDemandResponseDto} objects, based on the
      * given criteria.

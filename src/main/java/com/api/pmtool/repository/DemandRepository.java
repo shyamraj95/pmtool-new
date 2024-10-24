@@ -5,9 +5,11 @@ import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Repository;
 
 import com.api.pmtool.dtos.DemandCountResponseDTO;
@@ -21,6 +23,10 @@ public interface DemandRepository extends JpaRepository<Demand, UUID> {
         @Query("SELECT DISTINCT d FROM Demand d LEFT JOIN FETCH d.comments WHERE d.id = :demandId")
         Optional<Demand> findByIdWithCommentsAndUploads(@Param("demandId") UUID demandId);
 
+        @Query("SELECT DISTINCT d FROM Demand d LEFT JOIN FETCH d.comments")
+        Optional<Demand> getAllDemands();
+        @EntityGraph(attributePaths = {"userRoles","comments"})
+        Optional<Demand>findById(@Param("demandId")  @NonNull UUID demandId);
         // @EntityGraph(attributePaths = {"userRoles","comments"}) // Eager fetch the
         /*
          * @Query("SELECT DISTINCT d.id AS id, d.projectName AS projectName, d.demandName AS demandName, "

@@ -11,9 +11,12 @@ import com.api.pmtool.dtos.CreateDemandRequestDto;
 import com.api.pmtool.dtos.DemandCountResponseDTO;
 import com.api.pmtool.dtos.SearchDemandResponseDto;
 import com.api.pmtool.entity.Demand;
+import com.api.pmtool.entity.User;
 import com.api.pmtool.enums.Status;
 import com.api.pmtool.services.DemandService;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+import java.util.List;
 
 import java.io.IOException;
 import java.time.LocalDate;
@@ -155,6 +158,17 @@ public class DemandController {
         }
     }
 
+    @GetMapping("/getAllDemands")
+    @JsonIgnoreProperties({ "comments", "comments.uploads", "role" })
+    public ResponseEntity<List<Demand>> getAllDemands() {
+        List<Demand> demands = demandService.getAllDemands();
+        return ResponseEntity.ok(demands);
+    }
+    @GetMapping("/{demandId}/users")
+    public ResponseEntity<List<User>> getUsersByDemandId(@PathVariable UUID demandId) {
+        List<User> users = demandService.getUsersByDemandId(demandId);
+        return ResponseEntity.ok(users);
+    }
     @GetMapping("/search")
     @JsonIgnoreProperties({ "comments", "comments.uploads", "role" })
     public ResponseEntity<Page<SearchDemandResponseDto>> findDemands(
