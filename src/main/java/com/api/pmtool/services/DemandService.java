@@ -13,6 +13,7 @@ import com.api.pmtool.entity.User;
 import com.api.pmtool.enums.Status;
 import com.api.pmtool.exception.ResourceNotFoundException;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.time.LocalDate;
@@ -23,25 +24,32 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 public interface DemandService {
-Demand createDemand(CreateDemandRequestDto demandRequestDto) throws IOException;
+    Demand createDemand(CreateDemandRequestDto demandRequestDto) throws IOException;
 
-Demand assignDemand(AssignDemandRequestDto dto) throws IOException, IllegalArgumentException;
+    Demand assignDemand(AssignDemandRequestDto dto) throws IOException, IllegalArgumentException;
 
-void changeDueDate(ChangeDueDateRequestDto dto) throws IOException;
+    void changeDueDate(ChangeDueDateRequestDto dto) throws IOException;
 
-void changePriority(ChangePriorityRequestDto dto) throws IOException;
+    void changePriority(ChangePriorityRequestDto dto) throws IOException;
 
-void changeDemandStatus(ChangeDemandStatusRequestDto dto) throws IOException;
+    void changeDemandStatus(ChangeDemandStatusRequestDto dto) throws IOException;
 
-void addCommentOnDemand(AddCommentOnDemandDto dto) throws IOException;
+    void addCommentOnDemand(AddCommentOnDemandDto dto) throws IOException;
 
-Page<SearchDemandResponseDto> findDemandsByCriteria(String pfId, Status status, String role, String projectName, 
-    LocalDate startDate, LocalDate endDate, Pageable pageable);
+    Page<SearchDemandResponseDto> findDemandsByCriteria(String pfId, Status status, String role, String projectName,
+            LocalDate startDate, LocalDate endDate, Pageable pageable);
 
-Demand getDemandByDemandId(UUID demandId) throws IllegalArgumentException;
-List<Demand> getAllDemands();
-List<User> getUsersByDemandId(UUID demandId);
-DemandCountResponseDTO getDemandCounts();
+    Demand getDemandByDemandId(UUID demandId) throws IllegalArgumentException;
 
-Resource downloadUploadedFiles(UUID demandId)throws ResourceNotFoundException, MalformedURLException;
+    List<Demand> getAllDemands();
+
+    List<User> getUsersByDemandId(UUID demandId);
+
+    DemandCountResponseDTO getDemandCounts();
+
+    Resource downloadUploadedFiles(UUID demandId) throws ResourceNotFoundException, MalformedURLException;
+
+    ByteArrayOutputStream getFilesAsZip(UUID commentTypeId, UUID demandId)
+            throws IOException, ResourceNotFoundException, MalformedURLException;
+
 }

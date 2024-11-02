@@ -26,6 +26,9 @@ public class ChangeDemandStatusRequestDto {
     @Enumerated(EnumType.STRING)
     
     private Status newStatus;
+    
+    private UUID commentTypeId;
+
     private String comment; // Optional comment
 
    private List<MultipartFile> multipartFiles;

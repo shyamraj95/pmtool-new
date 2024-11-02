@@ -11,7 +11,11 @@ import lombok.Setter;
 @Setter
 public class AddCommentOnDemandDto {
     private UUID demandId;
+
+    private UUID commentTypeId;
+
     private String comment;
+    
     private List<MultipartFile> multipartFiles;
 }
 

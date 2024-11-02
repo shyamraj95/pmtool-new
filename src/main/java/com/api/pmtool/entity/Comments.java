@@ -7,8 +7,6 @@ import java.util.UUID;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.EnumType;
-import javax.persistence.Enumerated;
 import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
@@ -19,7 +17,6 @@ import javax.persistence.Table;
 
 import org.hibernate.annotations.GenericGenerator;
 
-import com.api.pmtool.enums.CommentType;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
@@ -50,6 +47,8 @@ public class Comments extends Auditable<UUID>{
     @OneToMany(mappedBy = "comment", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     private List<Uploads> uploads; // One comment has many file uploads
     
-    @Enumerated(EnumType.STRING)
-    private CommentType type;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "comment_type_id", nullable = false)
+ //   @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private CommentTypeEntity commentType;
 }

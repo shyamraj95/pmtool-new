@@ -23,6 +23,8 @@ public class ChangeDueDateRequestDto {
    // @Temporal(TemporalType.DATE)
     private LocalDate newDueDate;
 
+    private UUID commentTypeId;
+    
     private String comment; // Optional comment
 
    private List<MultipartFile> multipartFiles;

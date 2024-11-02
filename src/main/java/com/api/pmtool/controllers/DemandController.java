@@ -13,16 +13,20 @@ import com.api.pmtool.dtos.SearchDemandResponseDto;
 import com.api.pmtool.entity.Demand;
 import com.api.pmtool.entity.User;
 import com.api.pmtool.enums.Status;
+import com.api.pmtool.exception.ResourceNotFoundException;
 import com.api.pmtool.services.DemandService;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.util.List;
-
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.time.LocalDate;
 import java.util.UUID;
 import javax.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -158,17 +162,40 @@ public class DemandController {
         }
     }
 
+    @PostMapping("/download-files")
+    public ResponseEntity<?> downloadFiles(@RequestParam UUID commentTypeId, @RequestParam UUID demandId)
+            throws ResourceNotFoundException, MalformedURLException, IOException {
+        ByteArrayOutputStream zipOutputStream = demandService.getFilesAsZip(commentTypeId, demandId);
+        if (zipOutputStream == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        ByteArrayInputStream zipInputStream = new ByteArrayInputStream(zipOutputStream.toByteArray());
+        InputStreamResource resource = new InputStreamResource(zipInputStream);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + demandId + ".zip");
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(resource);
+
+    }
+
     @GetMapping("/getAllDemands")
     @JsonIgnoreProperties({ "comments", "comments.uploads", "role" })
     public ResponseEntity<List<Demand>> getAllDemands() {
         List<Demand> demands = demandService.getAllDemands();
         return ResponseEntity.ok(demands);
     }
+
     @GetMapping("/{demandId}/users")
     public ResponseEntity<List<User>> getUsersByDemandId(@PathVariable UUID demandId) {
         List<User> users = demandService.getUsersByDemandId(demandId);
         return ResponseEntity.ok(users);
     }
+
     @GetMapping("/search")
     @JsonIgnoreProperties({ "comments", "comments.uploads", "role" })
     public ResponseEntity<Page<SearchDemandResponseDto>> findDemands(
@@ -187,32 +214,4 @@ public class DemandController {
         return ResponseEntity.ok(demands);
     }
 
-    /*
-     * @PutMapping("/{id}/status")
-     * public ResponseEntity<Demand> changeDemandStatus(
-     * 
-     * @PathVariable UUID id,
-     * 
-     * @Valid @RequestBody ChangeDemandStatusRequestDto dto) {
-     * Demand updatedDemand = demandService.changeDemandStatus(id,
-     * dto.getNewStatus());
-     * return ResponseEntity.ok(updatedDemand);
-     * }
-     * 
-     * @GetMapping("/search")
-     * public ResponseEntity<Page<Demand>> searchDemands(
-     * 
-     * @RequestParam(value = "assignee", required = false) UUID assigneeId,
-     * 
-     * @RequestParam(value = "techLead", required = false) UUID techLeadId,
-     * 
-     * @RequestParam(value = "department", required = false) String department,
-     * 
-     * @PageableDefault(size = 10) Pageable pageable) {
-     * Page<Demand> demands =
-     * demandService.findDemandsByUserOrDepartment(assigneeId, techLeadId,
-     * department, pageable);
-     * return ResponseEntity.ok(demands);
-     * }
-     */
 }

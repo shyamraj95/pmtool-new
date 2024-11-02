@@ -3,7 +3,6 @@ import com.api.pmtool.config.UserRoleMapSerializer;
 import com.api.pmtool.enums.DemandTypes;
 import com.api.pmtool.enums.Priority;
 import com.api.pmtool.enums.Status;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import lombok.Getter;

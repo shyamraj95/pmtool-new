@@ -1,6 +1,5 @@
 package com.api.pmtool.dtos;
 
-
 import java.util.List;
 import java.util.UUID;
 
@@ -16,6 +15,7 @@ import com.api.pmtool.enums.DemandTypes;
 import java.time.LocalDate;
 import lombok.Getter;
 import lombok.Setter;
+
 @Getter
 @Setter
 public class CreateDemandRequestDto {
@@ -30,13 +30,16 @@ public class CreateDemandRequestDto {
     @NotNull(message = "Demand type is required")
     private DemandTypes demandType;
 
-    //@JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd/MM/yyyy")
+    // @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd/MM/yyyy")
     @DateTimeFormat(pattern = "dd-MM-yyyy")
     @NotNull(message = "Due date is required")
     private LocalDate dueDate;
 
-    private String comments;  // Comments and/or files to be uploaded
+    @NotNull(message = "comments is required")
+    private String comments; 
+
+    @NotNull(message = "comment type id is required")
+    private UUID commentTypeId;
 
     private List<MultipartFile> files;
 }
-

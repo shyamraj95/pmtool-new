@@ -20,6 +20,9 @@ public class ChangePriorityRequestDto {
     @NotNull(message = "Priority is required")
     private Priority newPriority;
 
+    private UUID commentTypeId;
+
     private String comment; // Optional comment
+    
    private List<MultipartFile> multipartFiles;
 }

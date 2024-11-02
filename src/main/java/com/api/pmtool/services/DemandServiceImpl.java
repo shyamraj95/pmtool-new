@@ -1,5 +1,6 @@
 package com.api.pmtool.services;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.nio.file.Files;
@@ -14,6 +15,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +38,7 @@ import com.api.pmtool.dtos.ChangePriorityRequestDto;
 import com.api.pmtool.dtos.CreateDemandRequestDto;
 import com.api.pmtool.dtos.DemandCountResponseDTO;
 import com.api.pmtool.dtos.SearchDemandResponseDto;
+import com.api.pmtool.entity.CommentTypeEntity;
 import com.api.pmtool.entity.Comments;
 import com.api.pmtool.entity.Demand;
 import com.api.pmtool.entity.ProjectEntity;
@@ -44,6 +48,8 @@ import com.api.pmtool.enums.Priority;
 import com.api.pmtool.enums.Status;
 import com.api.pmtool.exception.FileStorageException;
 import com.api.pmtool.exception.ResourceNotFoundException;
+import com.api.pmtool.repository.CommentRepository;
+import com.api.pmtool.repository.CommentTypeRepository;
 import com.api.pmtool.repository.DemandRepository;
 import com.api.pmtool.repository.ProjectRepository;
 import com.api.pmtool.repository.UploadRepository;
@@ -65,6 +71,12 @@ public class DemandServiceImpl implements DemandService {
 
     @Autowired
     private ProjectRepository projectRepository;
+
+    @Autowired
+    private CommentTypeRepository commentTypeRepository;
+
+    @Autowired
+    private CommentRepository commentRepository;
 
     @Autowired
     private UploadRepository uploadRepository;
@@ -101,9 +113,12 @@ public class DemandServiceImpl implements DemandService {
         demand.setDemandName(demandRequestDto.getDemandName());
         demand.setDueDate(demandRequestDto.getDueDate());
         demand.setStatus(Status.NOT_STARTED);
-
+        CommentTypeEntity commentType = commentTypeRepository.findById(demandRequestDto.getCommentTypeId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Comment Type not found with ID: " + demandRequestDto.getCommentTypeId()));
         // Create and set the Comment
         Comments comment = new Comments();
+        comment.setCommentType(commentType);
         comment.setComment(demandRequestDto.getComments());
         comment.setDemand(demand); // Set bidirectional relationship with Demand
 
@@ -179,9 +194,14 @@ public class DemandServiceImpl implements DemandService {
         demand.setUserRoles(newUserRoles);
         demand.setPriority(dto.getPriority()); // Set priority
         demand.setAssignDate(LocalDate.now());
+
+        CommentTypeEntity commentType = commentTypeRepository.findById(dto.getCommentTypeId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Comment Type not found with ID: " + dto.getCommentTypeId()));
         // Associate the Comment with Demand
         if (dto.getComment() != null && !dto.getComment().isEmpty()) {
             Comments newComment = new Comments();
+            newComment.setCommentType(commentType);
             newComment.setComment(dto.getComment());
             newComment.setDemand(demand); // Set the bidirectional relationship
 
@@ -220,6 +240,7 @@ public class DemandServiceImpl implements DemandService {
         demand.getStatusJourney().size();
         // demand.getComments().forEach(comment -> comment.getUploads().size());
         demand.getComments().forEach(comment -> {
+            comment.getCommentType().getId();
             // Loop through uploads within each comment
             comment.getUploads().forEach(upload -> {
                 // Remove unnecessary fields
@@ -227,13 +248,21 @@ public class DemandServiceImpl implements DemandService {
                 upload.setCreatedAt(null);
                 // upload.setModifiedBy(null);
                 // upload.setModifiedAt(null);
-                // upload.setFileName(null);  // Set fileName to null
-                upload.setFilePath(null);  // Set filePath to null
+                // upload.setFileName(null); // Set fileName to null
+                upload.setFilePath(null); // Set filePath to null
             });
         });
         return demand;
 
     }
+
+    /**
+     * Retrieves a list of Users assigned to a Demand by its ID.
+     * 
+     * @param demandId The ID of the Demand to retrieve users for
+     * @return A list of Users associated with the Demand
+     * @throws IllegalArgumentException If the Demand is not found
+     */
     @Override
     public List<User> getUsersByDemandId(UUID demandId) {
         Demand demand = demandRepository.findById(demandId)
@@ -242,11 +271,13 @@ public class DemandServiceImpl implements DemandService {
         // Extract users from the userRoles map in the Demand entity
         return demand.getUserRoles().keySet().stream().collect(Collectors.toList());
     }
+
     // Change the due date, add comments, and handle file storage
     @Override
     @Transactional
     public void changeDueDate(ChangeDueDateRequestDto dto) throws IOException {
-        UpdateDemandDetailsAndAddComment(dto.getDemandId(), dto.getComment(), dto.getMultipartFiles(),
+        UpdateDemandDetailsAndAddComment(dto.getDemandId(), dto.getCommentTypeId(), dto.getComment(),
+                dto.getMultipartFiles(),
                 dto.getNewDueDate(), null, null);
     }
 
@@ -262,17 +293,35 @@ public class DemandServiceImpl implements DemandService {
     @Override
     @Transactional
     public void changeDemandStatus(ChangeDemandStatusRequestDto dto) throws IOException {
-        UpdateDemandDetailsAndAddComment(dto.getDemandId(), dto.getComment(), dto.getMultipartFiles(), null,
+        UpdateDemandDetailsAndAddComment(dto.getDemandId(), dto.getCommentTypeId(), dto.getComment(),
+                dto.getMultipartFiles(), null,
                 dto.getNewStatus(), null);
     }
 
+    /**
+     * Changes the priority of a demand and adds a comment if provided. If files
+     * are provided, it saves the files and associates them with the comment.
+     * 
+     * @param dto The ChangePriorityRequestDto containing the request data
+     * @throws IOException
+     *                     If there is an error while saving the Demand
+     */
     @Transactional
     @Override
     public void changePriority(ChangePriorityRequestDto dto) throws IOException {
-        UpdateDemandDetailsAndAddComment(dto.getDemandId(), dto.getComment(), dto.getMultipartFiles(), null,
+        UpdateDemandDetailsAndAddComment(dto.getDemandId(), dto.getCommentTypeId(), dto.getComment(),
+                dto.getMultipartFiles(), null,
                 null, dto.getNewPriority());
     }
 
+    /**
+     * Retrieves a file by its ID and serves it as a downloadable resource.
+     * 
+     * @param fileId The ID of the file to download
+     * @return The file as a downloadable resource
+     * @throws ResourceNotFoundException If the file is not found
+     * @throws MalformedURLException     If the file path is malformed
+     */
     @Override
     public Resource downloadUploadedFiles(UUID fileId) throws ResourceNotFoundException, MalformedURLException {
         Uploads upload = uploadRepository.findById(fileId)
@@ -290,6 +339,44 @@ public class DemandServiceImpl implements DemandService {
     }
 
     /**
+     * Creates a ZIP file containing all the files associated with the given
+     * commentTypeId and demandId.
+     * 
+     * @param commentTypeId The ID of the comment type
+     * @param demandId      The ID of the demand
+     * @return A ByteArrayOutputStream containing the ZIP file, or null if there
+     *         are no files to download
+     * @throws IOException If there is an error while creating the ZIP file
+     */
+    @Override
+    public ByteArrayOutputStream getFilesAsZip(UUID commentTypeId, UUID demandId) throws IOException {
+        List<Path> filePaths = commentRepository.findByTypeIdAndDemandId(commentTypeId, demandId)
+                .stream()
+                .flatMap(comment -> comment.getUploads().stream())
+                .map(upload -> Paths.get(upload.getFilePath()))
+                .collect(Collectors.toList());
+
+        // Check if there are files to download
+        if (filePaths.isEmpty()) {
+            return null; // Or throw an exception if you prefer
+        }
+
+        // Create the ZIP file in a ByteArrayOutputStream
+        ByteArrayOutputStream zipOutputStream = new ByteArrayOutputStream();
+        try (ZipOutputStream zos = new ZipOutputStream(zipOutputStream)) {
+            for (Path filePath : filePaths) {
+                if (Files.exists(filePath)) {
+                    zos.putNextEntry(new ZipEntry(filePath.getFileName().toString()));
+                    Files.copy(filePath, zos);
+                    zos.closeEntry();
+                }
+            }
+        }
+
+        return zipOutputStream;
+    }
+
+    /**
      * Adds a comment to a Demand, optionally with file uploads.
      * 
      * @param dto The AddCommentOnDemandDto containing the request data
@@ -299,7 +386,8 @@ public class DemandServiceImpl implements DemandService {
     @Override
     @Transactional
     public void addCommentOnDemand(AddCommentOnDemandDto dto) throws IOException {
-        UpdateDemandDetailsAndAddComment(dto.getDemandId(), dto.getComment(), dto.getMultipartFiles(), null, null,
+        UpdateDemandDetailsAndAddComment(dto.getDemandId(), dto.getCommentTypeId(), dto.getComment(),
+                dto.getMultipartFiles(), null, null,
                 null);
     }
 
@@ -327,7 +415,7 @@ public class DemandServiceImpl implements DemandService {
      * @throws IOException
      *                     If there is an error while saving the Demand
      */
-    private void UpdateDemandDetailsAndAddComment(UUID demandId, @Nullable String comment,
+    private void UpdateDemandDetailsAndAddComment(UUID demandId, @Nullable UUID commentTypeId, @Nullable String comment,
             @Nullable List<MultipartFile> files,
             @Nullable LocalDate newDueDate, @Nullable Status status, @Nullable Priority newPriority)
             throws IOException {
@@ -349,9 +437,14 @@ public class DemandServiceImpl implements DemandService {
             // Extend due date using the existing method and increment dueDateChangeCount
             demand.setStatus(status); // Update the status of the demand with the new status;
         }
+
         // Associate the Comment with Demand
-        if (comment != null && !comment.isEmpty()) {
+        if (comment != null && !comment.isEmpty() && commentTypeId != null) {
+            CommentTypeEntity commentType = commentTypeRepository.findById(commentTypeId)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Comment Type not found with ID: " + commentTypeId));
             Comments newComment = new Comments();
+            newComment.setCommentType(commentType);
             newComment.setComment(comment);
             newComment.setDemand(demand); // Set the bidirectional relationship
             newComment.setUploads(processFile(files, newComment)); // Set bidirectional relationship for uploads
@@ -467,19 +560,36 @@ public class DemandServiceImpl implements DemandService {
                 || contentType.equals("application/msword")
                 || contentType.equals("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
     }
-@Transactional
-@Override
-public List<Demand> getAllDemands() {
-    List<Demand> demands = demandRepository.findAll();
-    demands.forEach((Demand demand) -> {
-        demand.getUserRoles().size();
-        demand.getProject();
-        demand.getStatusJourney().size();
-        demand.getComments().forEach(comment -> comment.getUploads().size());  
-    });
-    logger.debug("Demands fetched: {}", demands);
-    return demands;
-}
+
+    /**
+     * Retrieves all {@link Demand} objects from the database. The returned list of
+     * demands will have their {@link Demand#getUserRoles() user roles},
+     * {@link Demand#getProject()
+     * project}, {@link Demand#getStatusJourney() status journey}, and
+     * {@link Demand#getComments()
+     * comments} populated, but all other fields will be null.
+     * 
+     * @return A list of all demands in the database, with some fields populated.
+     */
+    @Override
+    @Transactional
+    public List<Demand> getAllDemands() {
+        List<Demand> demands = demandRepository.findAll();
+        demands.forEach((Demand demand) -> {
+            demand.getUserRoles().size();
+            demand.getProject();
+            demand.getStatusJourney().size();
+            // Access the comments to initialize the collection
+            demand.getComments().size();
+            demand.getComments().forEach(comment -> {
+                comment.getCommentType().getId();
+                comment.getUploads().size();
+            });
+        });
+        logger.debug("Demands fetched: {}", demands);
+        return demands;
+    }
+
     /**
      * Retrieves a page of {@link SearchDemandResponseDto} objects, based on the
      * given criteria.

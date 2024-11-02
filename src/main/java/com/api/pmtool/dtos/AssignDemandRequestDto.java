@@ -32,7 +32,9 @@ public class AssignDemandRequestDto {
     @NotNull(message = "Developer IDs are required")
     private List<UUID> developerIds;
     
-     private String comment; // Optional comment
+    private UUID commentTypeId;
+
+    private String comment; // Optional comment
 
     private List<MultipartFile> multipartFiles; // Optional file uploads
 
