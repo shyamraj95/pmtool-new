@@ -5,7 +5,6 @@ import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -20,86 +19,48 @@ import java.time.LocalDate;
 
 @Repository
 public interface DemandRepository extends JpaRepository<Demand, UUID> {
+
         @Query("SELECT DISTINCT d FROM Demand d LEFT JOIN FETCH d.comments WHERE d.id = :demandId")
         Optional<Demand> findByIdWithCommentsAndUploads(@Param("demandId") UUID demandId);
 
         @Query("SELECT DISTINCT d FROM Demand d LEFT JOIN FETCH d.comments")
         Optional<Demand> getAllDemands();
-        @EntityGraph(attributePaths = {"userRoles","comments"})
-        Optional<Demand>findById(@Param("demandId")  @NonNull UUID demandId);
-        // @EntityGraph(attributePaths = {"userRoles","comments"}) // Eager fetch the
-        /*
-         * @Query("SELECT DISTINCT d.id AS id, d.projectName AS projectName, d.demandName AS demandName, "
-         * +
-         * "d.status AS status, d.dueDate AS dueDate, d.dueDateChangeCount AS dueDateChangeCount "
-         * +
-         * "FROM Demand d " +
-         * "LEFT JOIN d.userRoles ur " +
-         * "WHERE (:userId IS NULL OR KEY(ur).id = :userId) " +
-         * "AND (:role IS NULL OR ur = :role) " +
-         * "AND (:projectName IS NULL OR d.projectName LIKE CONCAT('%',:projectName,'%')) "
-         * +
-         * "AND (:status IS NULL OR d.status = :status) " +
-         * "ORDER BY d.projectName ASC")
-         * Page<SearchDemandResponseDto> searchDemands(
-         * 
-         * @Param("userId") UUID userId,
-         * 
-         * @Param("status") Status status,
-         * 
-         * @Param("role") String role,
-         * 
-         * @Param("projectName") String projectName,
-         * Pageable pageable
-         * );
-         */
-        /*
-         * @Query("SELECT DISTINCT d.id AS id, d.projectName AS projectName, d.demandName AS demandName, "
-         * +
-         * "d.status AS status, d.dueDate AS dueDate, d.dueDateChangeCount AS dueDateChangeCount "
-         * +
-         * "FROM Demand d " +
-         * "LEFT JOIN d.userRoles ur " +
-         * "LEFT JOIN User u ON KEY(ur).id = u.id " +
-         * "WHERE (:userName IS NULL OR u.fullName LIKE CONCAT('%', :userName, '%')) " +
-         * "AND (:role IS NULL OR ur = :role) " +
-         * "AND (:projectName IS NULL OR d.projectName LIKE CONCAT('%', :projectName, '%')) "
-         * +
-         * "AND (:status IS NULL OR d.status = :status) " +
-         * "ORDER BY d.projectName ASC")
-         * Page<SearchDemandResponseDto> searchDemands(
-         * 
-         * @Param("userName") String userName,
-         * 
-         * @Param("status") Status status,
-         * 
-         * @Param("role") String role,
-         * 
-         * @Param("projectName") String projectName,
-         * Pageable pageable
-         * );
-         */
 
-        @Query("SELECT DISTINCT d.id AS id, d.project.projectName AS projectName, d.demandName AS demandName, " +
-                        "d.status AS status, d.dueDate AS dueDate, d.dueDateChangeCount AS dueDateChangeCount, " +
-                        "d.assignDate AS assignDate, d.statusChangeDate AS statusChangeDate, d.priority AS priority " +
+        Optional<Demand> findById(@Param("demandId") @NonNull UUID demandId);
+
+        @Query(value = "SELECT d.id AS id, " +
+                        "p.projectName AS projectName, " +
+                        "d.demandName AS demandName, " +
+                        "d.status AS status, " +
+                        "COALESCE(d.newDueDate, d.dueDate) AS dueDate, " +
+                        "d.dueDateChangeCount AS dueDateChangeCount, " +
+                        "d.assignDate AS assignDate, " +
+                        "d.statusChangeDate AS statusChangeDate, " +
+                        "d.priority AS priority, " +
+                        "u.fullName AS assignedTo " + // Add assignedTo full name here
                         "FROM Demand d " +
-                        "LEFT JOIN d.userRoles ur " +
-                        "LEFT JOIN User u ON KEY(ur).id = u.id " +
+                        "JOIN d.project p " +
+                        "LEFT JOIN d.assignedTo u " + // LEFT JOIN to include demands without an assignee
                         "WHERE (:pfId IS NULL OR u.pfId = :pfId) " +
-                        "AND (:role IS NULL OR ur = :role) " +
-                        "AND (:projectName IS NULL OR d.project.projectName LIKE CONCAT('%', :projectName, '%')) " +
                         "AND (:status IS NULL OR d.status = :status) " +
-                        "AND (:startDate IS NULL OR d.dueDate >= :startDate) " +
-                        "AND (:endDate IS NULL OR d.dueDate <= :endDate) " +
-                        "ORDER BY d.project.projectName ASC")
+                        "AND (:projectName IS NULL OR LOWER(p.projectName) LIKE LOWER(CONCAT('%', :projectName, '%'))) "
+                        +
+                        "AND (:demandName IS NULL OR LOWER(d.demandName) LIKE LOWER(CONCAT('%', :demandName, '%'))) " +
+                        "AND (:startDate IS NULL OR d.assignDate >= :startDate) " +
+                        "AND (:endDate IS NULL OR d.assignDate <= :endDate) " +
+                        "AND (:dueExceeded IS NULL OR " +
+                        "     (:dueExceeded = true AND COALESCE(d.newDueDate, d.dueDate) < CURRENT_DATE) OR " +
+                        "     (:dueExceeded = false AND COALESCE(d.newDueDate, d.dueDate) >= CURRENT_DATE)) " +
+                        "AND (:demandId IS NULL OR d.id = :demandId)")
         Page<SearchDemandResponseDto> searchDemands(
-                        @Param("pfId") String pfId, // Now filtering by pfId
+                        @Param("pfId") String pfId,
                         @Param("status") Status status,
-                        @Param("role") String role,
                         @Param("projectName") String projectName,
                         @Param("startDate") LocalDate startDate,
                         @Param("endDate") LocalDate endDate,
+                        @Param("dueExceeded") Boolean dueExceeded,
+                        @Param("demandName") String demandName,
+                        @Param("demandId") UUID demandId,
                         Pageable pageable);
 
         // Fetch counts based on multiple criteria in a single query

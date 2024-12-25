@@ -14,6 +14,7 @@ import javax.persistence.JoinColumn;
 import javax.persistence.JoinTable;
 import javax.persistence.ManyToMany;
 import javax.persistence.Table;
+import javax.persistence.Index;
 
 import org.hibernate.annotations.GenericGenerator;
 
@@ -31,7 +32,10 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "users")
+@Table(name = "users",
+indexes = {
+    @Index(name = "idx_users_pf_id", columnList = "pfId"),
+})
 public class User extends Auditable<UUID> {
     @Id
     @GeneratedValue(generator = "UUID")

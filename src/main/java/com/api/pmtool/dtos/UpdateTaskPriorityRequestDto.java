@@ -9,27 +9,25 @@ import javax.validation.constraints.NotNull;
 
 import org.springframework.web.multipart.MultipartFile;
 
-import com.api.pmtool.enums.Status;
+import com.api.pmtool.enums.Priority;
+
 
 import lombok.Getter;
 import lombok.Setter;
-import lombok.ToString;
+
 @Getter
 @Setter
-@ToString
-public class ChangeDemandStatusRequestDto {
+public class UpdateTaskPriorityRequestDto {
+    @NotNull(message = "Task ID is required")
+    private UUID taskId;
 
-    @NotNull(message = "Demand ID is required")
-    private UUID demandId;
-
-    @NotNull(message = "New status is required")
+    @NotNull(message = "Priority is required")
     @Enumerated(EnumType.STRING)
-    private Status newStatus;
+    private Priority priority; 
     
     private UUID commentTypeId;
 
-    private String comment; // Optional comment
+    private String comment;
 
-   private List<MultipartFile> multipartFiles;
+    private List<MultipartFile> multipartFiles;
 }
-

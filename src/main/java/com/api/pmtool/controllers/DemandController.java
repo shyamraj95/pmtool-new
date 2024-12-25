@@ -11,7 +11,6 @@ import com.api.pmtool.dtos.CreateDemandRequestDto;
 import com.api.pmtool.dtos.DemandCountResponseDTO;
 import com.api.pmtool.dtos.SearchDemandResponseDto;
 import com.api.pmtool.entity.Demand;
-import com.api.pmtool.entity.User;
 import com.api.pmtool.enums.Status;
 import com.api.pmtool.exception.ResourceNotFoundException;
 import com.api.pmtool.services.DemandService;
@@ -62,22 +61,6 @@ public class DemandController {
         }
     }
 
-    /*
-     * @PutMapping("/{id}/update")
-     * public ResponseEntity<Demand> updateDemand(
-     * 
-     * @PathVariable UUID id,
-     * 
-     * @ModelAttribute("demand") @Valid CreateDemandRequestDto demandDTO) {
-     * try {
-     * Demand createdDemand = demandService.updateDemand(demandDTO);
-     * return ResponseEntity.status(HttpStatus.CREATED).body(createdDemand);
-     * } catch (Exception e) {
-     * e.printStackTrace();
-     * return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-     * }
-     * }
-     */
     @GetMapping("/counts")
     public ResponseEntity<DemandCountResponseDTO> getDemandCounts() {
         DemandCountResponseDTO demandCounts = demandService.getDemandCounts();
@@ -190,26 +173,22 @@ public class DemandController {
         return ResponseEntity.ok(demands);
     }
 
-    @GetMapping("/{demandId}/users")
-    public ResponseEntity<List<User>> getUsersByDemandId(@PathVariable UUID demandId) {
-        List<User> users = demandService.getUsersByDemandId(demandId);
-        return ResponseEntity.ok(users);
-    }
-
     @GetMapping("/search")
     @JsonIgnoreProperties({ "comments", "comments.uploads", "role" })
     public ResponseEntity<Page<SearchDemandResponseDto>> findDemands(
             @RequestParam(value = "pfId", required = false) String pfId,
             @RequestParam(value = "status", required = false) Status status,
-            @RequestParam(value = "userRole", required = false) String userRole,
             @RequestParam(value = "startDate", required = false) LocalDate startDate,
             @RequestParam(value = "endDate", required = false) LocalDate endDate,
+            @RequestParam(value = "dueExceeded", required = false) Boolean  dueExceeded,
             @RequestParam(value = "projectName", required = false) String projectName,
-            @PageableDefault(size = 10, sort = "projectName") Pageable pageable) {
+            @RequestParam(value = "demandName", required = false) String demandName,
+            @RequestParam(value = "demandId", required = false) UUID demandId,
+            @PageableDefault(size = 10, sort = "dueDate") Pageable pageable) {
 
         // Call service method to get the paginated and sorted demands
-        Page<SearchDemandResponseDto> demands = demandService.findDemandsByCriteria(pfId, status, userRole, projectName,
-                startDate, endDate, pageable);
+        Page<SearchDemandResponseDto> demands = demandService.findDemandsByCriteria(pfId, status, projectName,
+                startDate, endDate,dueExceeded,demandName,demandId, pageable);
 
         return ResponseEntity.ok(demands);
     }

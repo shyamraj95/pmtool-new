@@ -24,4 +24,6 @@ public interface SearchDemandResponseDto {
     LocalDate getStatusChangeDate();
 
     Priority getPriority();
+    
+    String getAssignedTo();
 }

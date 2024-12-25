@@ -13,23 +13,20 @@ import com.api.pmtool.enums.Status;
 
 import lombok.Getter;
 import lombok.Setter;
-import lombok.ToString;
+
 @Getter
 @Setter
-@ToString
-public class ChangeDemandStatusRequestDto {
-
-    @NotNull(message = "Demand ID is required")
-    private UUID demandId;
-
+public class UpdateTaskProgressRequestDto {
+    @NotNull(message = "Task ID is required")
+    private UUID taskId;
+    
     @NotNull(message = "New status is required")
     @Enumerated(EnumType.STRING)
-    private Status newStatus;
-    
+    private Status workProgress;
+
     private UUID commentTypeId;
 
-    private String comment; // Optional comment
+    private String comment;
 
-   private List<MultipartFile> multipartFiles;
+    private List<MultipartFile> multipartFiles;
 }
-

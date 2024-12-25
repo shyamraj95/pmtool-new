@@ -45,6 +45,7 @@ public class UserService {
         user.setDesignation(userDto.getDesignation());
         user.setDepartment(userDto.getDepartment());
         user.setStatus(userDto.getStatus());
+        user.setPfId(userDto.getPfId());
 
         // Fetch and assign roles
         Set<Role> roles = new HashSet<>();

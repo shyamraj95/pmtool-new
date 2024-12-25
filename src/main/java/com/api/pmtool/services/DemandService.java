@@ -24,32 +24,31 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 public interface DemandService {
-    Demand createDemand(CreateDemandRequestDto demandRequestDto) throws IOException;
+        Demand createDemand(CreateDemandRequestDto demandRequestDto) throws IOException;
 
-    Demand assignDemand(AssignDemandRequestDto dto) throws IOException, IllegalArgumentException;
+        void assignDemand(AssignDemandRequestDto dto) throws IOException, IllegalArgumentException;
 
-    void changeDueDate(ChangeDueDateRequestDto dto) throws IOException;
+        void changeDueDate(ChangeDueDateRequestDto dto) throws IOException;
 
-    void changePriority(ChangePriorityRequestDto dto) throws IOException;
+        void changePriority(ChangePriorityRequestDto dto) throws IOException;
 
-    void changeDemandStatus(ChangeDemandStatusRequestDto dto) throws IOException;
+        void changeDemandStatus(ChangeDemandStatusRequestDto dto) throws IOException;
 
-    void addCommentOnDemand(AddCommentOnDemandDto dto) throws IOException;
+        void addCommentOnDemand(AddCommentOnDemandDto dto) throws IOException;
 
-    Page<SearchDemandResponseDto> findDemandsByCriteria(String pfId, Status status, String role, String projectName,
-            LocalDate startDate, LocalDate endDate, Pageable pageable);
+        Page<SearchDemandResponseDto> findDemandsByCriteria(String pfId, Status status, String projectName,
+                        LocalDate startDate, LocalDate endDate, Boolean dueExceeded, String demandName, UUID demandId,
+                        Pageable pageable);
 
-    Demand getDemandByDemandId(UUID demandId) throws IllegalArgumentException;
+        Demand getDemandByDemandId(UUID demandId) throws IllegalArgumentException;
 
-    List<Demand> getAllDemands();
+        List<Demand> getAllDemands();
 
-    List<User> getUsersByDemandId(UUID demandId);
+        DemandCountResponseDTO getDemandCounts();
 
-    DemandCountResponseDTO getDemandCounts();
+        Resource downloadUploadedFiles(UUID demandId) throws ResourceNotFoundException, MalformedURLException;
 
-    Resource downloadUploadedFiles(UUID demandId) throws ResourceNotFoundException, MalformedURLException;
-
-    ByteArrayOutputStream getFilesAsZip(UUID commentTypeId, UUID demandId)
-            throws IOException, ResourceNotFoundException, MalformedURLException;
+        ByteArrayOutputStream getFilesAsZip(UUID commentTypeId, UUID demandId)
+                        throws IOException, ResourceNotFoundException, MalformedURLException;
 
 }

@@ -8,6 +8,8 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
+import javax.persistence.Table;
+import javax.persistence.Index;
 
 import org.hibernate.annotations.GenericGenerator;
 
@@ -19,6 +21,9 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
+@Table(name = "uploads",indexes = {
+    @Index(name = "idx_uploads_comment_id", columnList = "comment_id")
+})
 public class Uploads extends Auditable<UUID> {
     @Id
     @GeneratedValue(generator = "UUID")
@@ -32,6 +37,5 @@ public class Uploads extends Auditable<UUID> {
     @JoinColumn(name = "comment_id", nullable = false) // Specify the foreign key column for the relationship
     private Comments comment;  // This establishes the many-to-one relationship
 
-    private String fileName;
     private String filePath;
 }

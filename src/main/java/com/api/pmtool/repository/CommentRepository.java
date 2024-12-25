@@ -14,4 +14,8 @@ public interface CommentRepository extends JpaRepository<Comments, UUID> {
   @Query("SELECT c FROM Comments c LEFT JOIN FETCH c.uploads WHERE c.commentType.id = :commentTypeId AND c.demand.id = :demandId")
   List<Comments> findByTypeIdAndDemandId(@Param("commentTypeId") UUID commentTypeId,
       @Param("demandId") UUID demandId);
+
+  @Query("SELECT c FROM Comments c LEFT JOIN FETCH c.uploads WHERE c.commentType.id = :commentTypeId AND c.task.id = :taskId")
+  List<Comments> findByTypeIdAndTaskId(@Param("commentTypeId") UUID commentTypeId,
+      @Param("taskId") UUID taskId);
 }

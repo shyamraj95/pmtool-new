@@ -23,4 +23,7 @@ public class CommentTypeEntity {
 
     @Column(name = "comment_type_name", unique = true, nullable = false)
     private String commentTypeName;
+
+    @Column(name = "can_upload_multiple_files", unique = false, nullable = false, length = 1)
+    private String canUploadMultipleFiles;
 }

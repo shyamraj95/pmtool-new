@@ -24,11 +24,11 @@ public class CreateDemandRequestDto {
     private UUID projectId;
 
     @NotBlank(message = "Demand name is required")
-    @Size(max = 15, message = "Demand name must not exceed 15 characters")
+    @Size(max = 50, message = "Demand name must not exceed 50 characters")
     private String demandName;
 
     @NotNull(message = "Demand type is required")
-    private DemandTypes demandType;
+    private DemandTypes demandTypes;
 
     // @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd/MM/yyyy")
     @DateTimeFormat(pattern = "dd-MM-yyyy")

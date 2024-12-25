@@ -11,32 +11,21 @@ import com.api.pmtool.enums.Priority;
 
 import lombok.Getter;
 import lombok.Setter;
-import lombok.ToString;
+
 @Getter
 @Setter
-@ToString
-public class AssignDemandRequestDto {
+public class AssignTaskRequestDto {
+    @NotNull(message = "Task ID is required")
+    private UUID taskId;
 
-    @NotNull(message = "Demand ID is required")
-    private UUID demandId;
+    @NotNull(message = "Developer/Server Admin ID is required")
+    private UUID assignToId;
 
     @NotNull(message = "Demand ID is required")
     private Priority priority;
-
-    @NotNull(message = "Assignee user ID is required")
-    private UUID assigneeId;
-
-    @NotNull(message = "Tech Lead user ID is required")
-    private UUID techLeadId;
-
-/*     @NotNull(message = "Developer IDs are required")
-    private List<UUID> developerIds; */
-    
     private UUID commentTypeId;
 
     private String comment; // Optional comment
 
     private List<MultipartFile> multipartFiles; // Optional file uploads
-
 }
-

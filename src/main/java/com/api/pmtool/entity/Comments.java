@@ -14,6 +14,7 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
+import javax.persistence.Index;
 
 import org.hibernate.annotations.GenericGenerator;
 
@@ -22,10 +23,16 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import lombok.Getter;
 import lombok.Setter;
+
 @Getter
 @Setter
 @Entity
-@Table(name = "comments")
+@Table(name = "comments", 
+indexes = {
+    @Index(name = "idx_comments_demand_id", columnList = "demand_id"),
+    @Index(name = "idx_comments_task_id", columnList = "task_id"),
+    @Index(name = "idx_comments_comment_type_id", columnList = "comment_type_id")
+})
 public class Comments extends Auditable<UUID>{
 
     @Id
@@ -43,10 +50,15 @@ public class Comments extends Auditable<UUID>{
     private String comment;
 
     //@JsonBackReference // Prevents infinite recursion in JSON serialization
-    @JsonIgnoreProperties("demand")
+    @JsonIgnoreProperties({"demand", "task"})
     @OneToMany(mappedBy = "comment", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     private List<Uploads> uploads; // One comment has many file uploads
     
+    @JsonIgnore
+    @ManyToOne
+    @JoinColumn(name = "task_id", nullable = true)
+    private TasksEntity task; // Nullable, can be associated with a task
+
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "comment_type_id", nullable = false)
  //   @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
