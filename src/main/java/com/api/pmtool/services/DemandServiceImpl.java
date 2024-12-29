@@ -3,7 +3,7 @@ package com.api.pmtool.services;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.MalformedURLException;
-import java.nio.file.Files;
+
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -11,8 +11,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
 import org.springframework.transaction.annotation.Transactional;
 
@@ -86,6 +84,24 @@ public class DemandServiceImpl implements DemandService {
 
     private static final Logger logger = LoggerFactory.getLogger(DemandService.class);
 
+/**
+ * Creates a new demand based on the provided demand request DTO.
+ * This method performs the following actions:
+ * 1. Fetches the associated project using the project ID from the request.
+ * 2. Creates a new Demand entity and sets its properties, including
+ *    project association, demand name, demand type, due date, and initial status.
+ * 3. Fetches the comment type and creates a system comment for logging the demand creation.
+ * 4. Creates a user comment and associates it with the demand.
+ * 5. Handles file uploads associated with the comment, if any, and saves them.
+ * 6. Persists the Demand entity along with its comments and uploads.
+ *
+ * @param demandRequestDto the data transfer object containing information
+ *                         required to create a new demand.
+ * @return the created and saved Demand entity.
+ * @throws IOException if an error occurs during file handling.
+ * @throws IllegalArgumentException if the project or comment type cannot be found with the given IDs.
+ */
+
     @Override
     @Transactional // Ensures that the entire method executes within a single transaction
     public Demand createDemand(CreateDemandRequestDto demandRequestDto) throws IOException {
@@ -117,12 +133,23 @@ public class DemandServiceImpl implements DemandService {
         demand.getComments().add(comment);
         List<MultipartFile> files = demandRequestDto.getFiles();
         if (files != null && files.size() > 0) {
-            comment.setUploads(fileUploadUtils.uploadsSetter(files, comment)); // Set bidirectional relationship for Uploads
+            comment.setUploads(fileUploadUtils.uploadsSetter(files, comment, demand.getId())); // Set bidirectional relationship for Uploads
         }
         Demand savedData = demandRepository.save(demand);
-        fileUploadUtils.saveFile(files, fileUploadUtils.getFilesPath(files, comment.getCommentType()));
+        fileUploadUtils.saveFile(files, fileUploadUtils.getFilesPath(files, comment.getCommentType(), demand.getId()),commentType.getCanUploadMultipleFiles());
         return savedData;
     }
+
+/**
+ * Assigns a demand to a manager and tech lead, sets its priority and assignment date,
+ * and adds comments if provided. This method ensures that the operation is executed
+ * within a single transaction.
+ *
+ * @param dto The data transfer object containing the demand assignment details.
+ * @throws IOException If there is an error during file handling.
+ * @throws IllegalArgumentException If any of the provided IDs do not correspond to
+ *                                  existing entities in the database.
+ */
 
     @Override
     @Transactional // Ensure the operation happens in a single transaction
@@ -159,7 +186,7 @@ public class DemandServiceImpl implements DemandService {
             userComment.setDemand(demand); // Set the bidirectional relationship
 
             if (files != null && files.size() > 0) {
-                userComment.setUploads(fileUploadUtils.uploadsSetter(files, userComment)); // Set bidirectional relationship for Uploads
+                userComment.setUploads(fileUploadUtils.uploadsSetter(files, userComment, demand.getId())); // Set bidirectional relationship for Uploads
             }
 
             demand.getComments().add(userComment); // Update the comments list
@@ -168,9 +195,19 @@ public class DemandServiceImpl implements DemandService {
 
         // Save Demand, which will cascade and save Comments and Uploads due to
         demandRepository.save(demand);
-        fileUploadUtils.saveFile(files, fileUploadUtils.getFilesPath(files, commentType));
+        fileUploadUtils.saveFile(files, fileUploadUtils.getFilesPath(files, commentType, demand.getId()),commentType.getCanUploadMultipleFiles());
     }
 
+    /**
+     * Retrieves a Demand entity from the database by its ID, including its comments
+     * and their respective uploads. This method is transactional and will throw an
+     * IllegalArgumentException if the ID does not correspond to an existing Demand
+     * entity in the database.
+     *
+     * @param demandId The ID of the Demand to be retrieved.
+     * @return The Demand entity with its comments and uploads.
+     * @throws IllegalArgumentException If the Demand does not exist with the given ID.
+     */
     @Override
     @Transactional
     public Demand getDemandByDemandId(UUID demandId) throws IllegalArgumentException {
@@ -185,7 +222,17 @@ public class DemandServiceImpl implements DemandService {
 
     }
 
-    // Change the due date, add comments, and handle file storage
+
+    /**
+     * Updates the due date of a Demand and adds a comment with the given details. This
+     * method ensures that the operation is executed within a single transaction.
+     * 
+     * @param dto The data transfer object containing the demand ID, new due date,
+     *            comment type ID, comment, and files to be uploaded.
+     * @throws IOException If there is an error during file handling.
+     * @throws IllegalArgumentException If any of the provided IDs do not correspond to
+     *                                  existing entities in the database.
+     */
     @Override
     @Transactional
     public void changeDueDate(ChangeDueDateRequestDto dto) throws IOException {
@@ -203,6 +250,16 @@ public class DemandServiceImpl implements DemandService {
                 dto.getNewStatus(), null);
     }
 
+    /**
+     * Updates the priority of a Demand and adds a comment with the given details. This
+     * method ensures that the operation is executed within a single transaction.
+     * 
+     * @param dto The data transfer object containing the demand ID, new priority,
+     *            comment type ID, comment, and files to be uploaded.
+     * @throws IOException If there is an error during file handling.
+     * @throws IllegalArgumentException If any of the provided IDs do not correspond to
+     *                                  existing entities in the database.
+     */
     @Transactional
     @Override
     public void changePriority(ChangePriorityRequestDto dto) throws IOException {
@@ -210,6 +267,16 @@ public class DemandServiceImpl implements DemandService {
                 dto.getMultipartFiles(), null,
                 null, dto.getNewPriority());
     }
+
+/**
+ * Downloads an uploaded file based on the provided file ID.
+ *
+ * @param fileId The UUID of the file to be downloaded.
+ * @return A Resource representing the file to be downloaded.
+ * @throws ResourceNotFoundException If the file is not found in the repository
+ *                                   or the file does not exist at the specified path.
+ * @throws MalformedURLException If the file path is malformed.
+ */
 
     @Override
     public Resource downloadUploadedFiles(UUID fileId) throws ResourceNotFoundException, MalformedURLException {
@@ -227,6 +294,17 @@ public class DemandServiceImpl implements DemandService {
         return resource;
     }
 
+    /**
+     * Returns a ByteArrayOutputStream containing the files associated with the given
+     * comment type and demand IDs as a ZIP archive. If there are no files to download,
+     * the method will return null.
+     *
+     * @param commentTypeId The UUID of the comment type to associate the files with.
+     * @param demandId      The UUID of the demand to associate the files with.
+     * @return A ByteArrayOutputStream containing the ZIP archive, or null if there are no
+     *         files to download.
+     * @throws IOException If an error occurs while reading the file input streams.
+     */
     @Override
     public ByteArrayOutputStream getFilesAsZip(UUID commentTypeId, UUID demandId) throws IOException {
         List<Path> filePaths = commentRepository.findByTypeIdAndDemandId(commentTypeId, demandId)
@@ -258,6 +336,18 @@ public class DemandServiceImpl implements DemandService {
     }
 
 
+    /**
+     * Updates the details of a Demand and adds a comment to it, optionally with file uploads.
+     * 
+     * @param demandId       The UUID of the Demand to update.
+     * @param commentTypeId  The UUID of the CommentType to associate the comment with.
+     * @param comment        The comment to add to the Demand.
+     * @param files          The files to upload, if any.
+     * @param newDueDate     The new due date to set, if any.
+     * @param status         The new status to set, if any.
+     * @param newPriority    The new priority to set, if any.
+     * @throws IOException If an error occurs while saving the Demand.
+     */
     private void UpdateDemandDetailsAndAddComment(UUID demandId, @Nullable UUID commentTypeId, @Nullable String comment,
             @Nullable List<MultipartFile> files,
             @Nullable LocalDate newDueDate, @Nullable Status status, @Nullable Priority newPriority)
@@ -293,7 +383,7 @@ public class DemandServiceImpl implements DemandService {
             newComment.setCommentType(commentType);
             newComment.setComment(comment);
             newComment.setDemand(demand); // Set the bidirectional relationship
-            newComment.setUploads(fileUploadUtils.uploadsSetter(files, newComment));
+            newComment.setUploads(fileUploadUtils.uploadsSetter(files, newComment, demand.getId()));
             // Add the new comment to the list of existing comments
             List<Comments> currentComments = demand.getComments();
             if (currentComments == null) {
@@ -302,7 +392,7 @@ public class DemandServiceImpl implements DemandService {
             currentComments.add(newComment);
             demand.setComments(currentComments); // Update the comments list
             if (files != null && files.size() > 0) {
-                fileUploadUtils.saveFile(files, fileUploadUtils.getFilesPath(files, commentType));
+                fileUploadUtils.saveFile(files, fileUploadUtils.getFilesPath(files, commentType, demand.getId()),commentType.getCanUploadMultipleFiles());
             }
 
         }
@@ -310,6 +400,16 @@ public class DemandServiceImpl implements DemandService {
         // well)
         demandRepository.save(demand);
     }
+
+/**
+ * Creates a system comment for a given demand with an optional action log message.
+ *
+ * @param demand The demand to associate the system comment with.
+ * @param actionLogMessage An optional log message describing the action to be logged.
+ *                          If null, no action message will be set.
+ * @return A Comments object representing the system comment associated with the demand.
+ * @throws IllegalArgumentException If the system journey log comment type ID is not found.
+ */
 
     private Comments systemComment(Demand demand, @Nullable String actionLogMessage) {
         Comments loggerComment = new Comments();
@@ -353,7 +453,6 @@ public class DemandServiceImpl implements DemandService {
      */
 
     @Override
-
     public Page<SearchDemandResponseDto> findDemandsByCriteria(String pfId,
             Status status, String projectName, LocalDate startDate, LocalDate endDate, Boolean dueExceeded,String demandName, UUID demandId,
             Pageable pageable) {

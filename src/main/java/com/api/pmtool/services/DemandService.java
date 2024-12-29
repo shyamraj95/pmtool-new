@@ -9,7 +9,6 @@ import com.api.pmtool.dtos.CreateDemandRequestDto;
 import com.api.pmtool.dtos.DemandCountResponseDTO;
 import com.api.pmtool.dtos.SearchDemandResponseDto;
 import com.api.pmtool.entity.Demand;
-import com.api.pmtool.entity.User;
 import com.api.pmtool.enums.Status;
 import com.api.pmtool.exception.ResourceNotFoundException;
 

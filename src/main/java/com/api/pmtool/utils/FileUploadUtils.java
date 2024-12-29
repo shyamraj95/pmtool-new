@@ -12,12 +12,14 @@ import com.api.pmtool.exception.FileStorageException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -25,11 +27,12 @@ import java.util.zip.ZipOutputStream;
 public class FileUploadUtils {
 
     private static final String UPLOAD_DIRECTORY = "/Users/shyamrajsingh/Development/upload/"; // Root directory for
-    // file storage
-    private final Path UPLOAD_DIR = Paths.get(UPLOAD_DIRECTORY).toAbsolutePath().normalize();
+
 
   /*   @Value("${report.path}")
     private String reportPath; */
+
+
     /**
      * Validates the file meta data by checking its MIME type and file extension.
      * This method uses Apache Tika to detect the MIME type of the file and
@@ -135,16 +138,51 @@ public class FileUploadUtils {
         return filename.substring(filename.lastIndexOf(".") + 1).toLowerCase();
     }
 
-    public void saveFile(List<MultipartFile> files, List<String> filePaths) throws IOException {
+    /**
+     * Saves the given list of files to the file system at the given paths.
+     * This method assumes that the given list of files and the given list of
+     * paths are of the same length.
+     * If the file already exists at the given path, it is replaced.
+     *
+     * @param files     The list of files to be saved.
+     * @param filePaths The list of paths where the files are to be saved.
+     * @throws IOException If an error occurs while writing to the file system.
+     */
+    public void saveFile(List<MultipartFile> files, List<String> filePaths, String canUploadMultipleFiles) throws IOException, FileAlreadyExistsException {
         // Save the files only after the transaction succeeds
         for (String filePath : filePaths) {
             MultipartFile file = files.get(filePaths.indexOf(filePath)); // Get the file
             Path path = Paths.get(filePath);
+            // Check if the file already exists and if multi file upload is not allowed throw an exception
+            if (canUploadMultipleFiles.equals("Y") && Files.exists(path)) {
+                throw new FileAlreadyExistsException("File already exists: " + path); 
+            }
+            /* else if (canUploadMultipleFiles.equals("Y") &&Files.exists(path)) {
+                String randomString = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 3);
+                path = Paths.get(filePath + "_" + randomString);
+            } */
             Files.copy(file.getInputStream(), path, StandardCopyOption.REPLACE_EXISTING);
         }
     }
 
-    public String getFilePath(MultipartFile file, CommentTypeEntity commentType) throws IOException {
+    /**
+     * Generates a file path for the given file and comment type. The file path
+     * is a concatenation of the upload directory and the comment type name
+     * followed by the first 5 characters of the original file name. The method
+     * also ensures that the upload directory exists, and creates it if not
+     * present.
+     * 
+     * @param file        The file to generate a file path for. If
+     *                    {@code null} or empty, the method will return {@code null}.
+     * @param commentType The comment type to associate the file with. If
+     *                    {@code null}, the method will not associate the file
+     *                    with any comment type.
+     * @return The file path for the given file and comment type, or
+     *         {@code null} if the file is {@code null} or empty.
+     * @throws IOException If an error occurs while reading the file input
+     *                     stream.
+     */
+    public String getFilePath(MultipartFile file, CommentTypeEntity commentType, UUID demandId) throws IOException {
         // Validate the file's metadata
         if (!isValidFileMetaData(file)) {
             throw new IllegalArgumentException("Invalid file metadata");
@@ -154,6 +192,10 @@ public class FileUploadUtils {
         String fileName = commentType.getCommentTypeName() + "_"
                 + ((orgFileName != null && orgFileName.length() < 6) ? orgFileName.substring(0, 5)
                         : file.getOriginalFilename());
+        // Generate the file path based on last part of demandId
+        String demandFilesDir = UPLOAD_DIRECTORY + "/" + demandId.toString().split("-")[4];
+ 
+        Path UPLOAD_DIR = Paths.get(demandFilesDir).toAbsolutePath().normalize();
         // Generate the file path
         String filePath = UPLOAD_DIR + "/" + fileName;
 
@@ -164,25 +206,54 @@ public class FileUploadUtils {
         return filePath;
     }
 
-    public  List<String> getFilesPath(@Nullable List<MultipartFile> files, @Nullable CommentTypeEntity commentType)
+    /**
+     * Gets the list of file paths for the given list of files and comment type.
+     * 
+     * @param files        The list of files to get the file paths for. If
+     *                     {@code null} or empty, the method will return an empty
+     *                     list.
+     * @param commentType  The comment type to associate the file with. If
+     *                     {@code null}, the method will not associate the file
+     *                     with any comment type.
+     * @return A list of file paths, each of which is the full path to the
+     *         uploaded file.
+     * @throws IOException If an error occurs while reading the file input
+     *                     stream.
+     */
+    public  List<String> getFilesPath(@Nullable List<MultipartFile> files, @Nullable CommentTypeEntity commentType, UUID demandId)
             throws IOException {
         List<String> filePaths = new ArrayList<>();
         if (files != null && files.size() > 0 && !files.isEmpty()) {
             for (MultipartFile file : files) {
-                String filePath = getFilePath(file, commentType);
+                String filePath = getFilePath(file, commentType, demandId);
                 filePaths.add(filePath);
             }
         }
         return filePaths;
     }
     
-    public List<Uploads> uploadsSetter(@Nullable List<MultipartFile> files, @Nullable Comments newComments)
+    /**
+     * Creates a list of Uploads objects from the given list of files and comment,
+     * and associates each Uploads with the given comment.
+     * 
+     * @param files        The list of files to create Uploads objects for. If
+     *                     {@code null} or empty, the method will return an empty
+     *                     list.
+     * @param newComments  The comment to associate the Uploads objects with. If
+     *                     {@code null}, the method will not associate the Uploads
+     *                     with any comment.
+     * @return A list of Uploads objects, each of which is associated with the
+     *         given comment.
+     * @throws IOException If an error occurs while reading the file input
+     *                     stream.
+     */
+    public List<Uploads> uploadsSetter(@Nullable List<MultipartFile> files, @Nullable Comments newComments, UUID demandId)
             throws IOException {
         List<Uploads> uploadsList = new ArrayList<>();
         CommentTypeEntity commentType = newComments != null ? newComments.getCommentType() : null;
         if (files != null && files.size() > 0 && !files.isEmpty()) {
             for (MultipartFile file : files) {
-                String filePath = getFilePath(file, commentType);
+                String filePath = getFilePath(file, commentType, demandId);
                 Uploads upload = new Uploads();
                 upload.setComment(newComments); // Associate upload with comment
                 upload.setFilePath(filePath);
@@ -191,6 +262,15 @@ public class FileUploadUtils {
         }
         return uploadsList;
     }
+
+/**
+ * Compresses a list of files into a ZIP format and returns the resulting byte array output stream.
+ *
+ * @param filePaths The list of file paths to be included in the ZIP archive. Each path should
+ *                  correspond to an existing file.
+ * @return A ByteArrayOutputStream containing the ZIP file data.
+ * @throws IOException If an I/O error occurs while reading the files or writing to the ZIP output stream.
+ */
 
     public ByteArrayOutputStream getFilesAsZip(List<Path> filePaths) throws IOException{
         ByteArrayOutputStream zipOutputStream = new ByteArrayOutputStream();

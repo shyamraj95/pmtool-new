@@ -18,7 +18,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -70,6 +69,23 @@ public class TasksServiceImpl implements TasksService {
 
     private static final Logger logger = LoggerFactory.getLogger(TasksServiceImpl.class);
 
+/**
+ * Creates a new task based on the provided request data.
+ *
+ * This method fetches the associated demand using the provided demand ID
+ * and creates a new task entity. It sets the task's name, type, due date,
+ * and initial status as 'NOT_STARTED'. A system comment is added for logging,
+ * and if user comments are provided, they are added to the task along with
+ * any uploaded files.
+ *
+ * @param taskRequestDto the DTO containing the task creation data, including
+ *                       demand ID, task name, type, due date, comments, comment type ID,
+ *                       and any associated files.
+ * @throws IOException if an error occurs while handling file uploads.
+ * @throws IllegalArgumentException if the demand or comment type cannot be found
+ *                                  using the provided IDs.
+ */
+
     @Override
     @Transactional
     public void createTask(CreateTaskRequestDto taskRequestDto) throws IOException {
@@ -102,8 +118,8 @@ public class TasksServiceImpl implements TasksService {
             comment.setDemand(demand);
             List<MultipartFile> files = taskRequestDto.getFiles();
             if (files != null && !files.isEmpty()) {
-                comment.setUploads(fileUploadUtils.uploadsSetter(files, comment));
-                fileUploadUtils.saveFile(files, fileUploadUtils.getFilesPath(files, commentType));
+                comment.setUploads(fileUploadUtils.uploadsSetter(files, comment, demand.getId()));
+                fileUploadUtils.saveFile(files, fileUploadUtils.getFilesPath(files, commentType, demand.getId()),commentType.getCanUploadMultipleFiles());
             }
 
             task.getComments().add(comment);
@@ -138,6 +154,14 @@ public class TasksServiceImpl implements TasksService {
         taskRepository.save(task);
     }
 
+    /**
+     * Updates the work progress status of a task, adds a comment to the task with the provided comment type ID and comment text,
+     * and adds the provided files to the task as well.
+     *
+     * @param dto the DTO containing the task ID, comment type ID, comment text, files to be uploaded, and new work progress status.
+     * @throws IOException if an error occurs while handling file uploads.
+     * @throws IllegalArgumentException if the task or comment type cannot be found using the provided IDs.
+     */
     @Override
     @Transactional
     public void updateWorkProgress(UpdateTaskProgressRequestDto dto) throws IOException {
@@ -145,12 +169,30 @@ public class TasksServiceImpl implements TasksService {
                 dto.getMultipartFiles(), null, dto.getWorkProgress(), null);
     }
 
+    /**
+     * Updates the priority of a task, adds a comment to the task with the provided comment type ID and comment text,
+     * and adds the provided files to the task as well.
+     *
+     * @param dto the DTO containing the task ID, comment type ID, comment text, files to be uploaded, and new priority.
+     * @throws IOException if an error occurs while handling file uploads.
+     * @throws IllegalArgumentException if the task or comment type cannot be found using the provided IDs.
+     */
     @Override
     @Transactional
     public void updatePriority(UpdateTaskPriorityRequestDto dto) throws IOException {
         updateTaskDetailsAndAddComment(dto.getTaskId(), dto.getCommentTypeId(), dto.getComment(),
                 dto.getMultipartFiles(), null, null, dto.getPriority());
     }
+
+/**
+ * Updates the due date of a task and adds a comment with the given details. This
+ * method ensures the operation is executed within a single transaction.
+ *
+ * @param dto The data transfer object containing the task ID, new due date,
+ *            comment type ID, comment, and files to be uploaded.
+ * @throws IOException If there is an error during file handling.
+ * @throws IllegalArgumentException If the task or comment type cannot be found using the provided IDs.
+ */
 
     @Override
     @Transactional
@@ -159,6 +201,13 @@ public class TasksServiceImpl implements TasksService {
                 dto.getMultipartFiles(), dto.getNewDueDate(), null, null);
     }
 
+    /**
+     * Adds a comment to a task, optionally with file uploads.
+     *
+     * @param dto the DTO containing the task ID, comment type ID, comment text, and files to be uploaded.
+     * @throws IOException if an error occurs while handling file uploads.
+     * @throws IllegalArgumentException if the task or comment type cannot be found using the provided IDs.
+     */
     @Override
     @Transactional
     public void addCommentOnTask(AddCommentOnTaskDto dto) throws IOException {
@@ -166,6 +215,15 @@ public class TasksServiceImpl implements TasksService {
                 dto.getMultipartFiles(), null, null,
                 null);
     }
+
+/**
+ * Retrieves a task by its ID, including its comments and their respective uploads.
+ * This method ensures that the collections are initialized to handle lazy loading.
+ *
+ * @param taskId The UUID of the task to be retrieved.
+ * @return The TasksEntity with its comments and uploads.
+ * @throws IllegalArgumentException If the task does not exist with the given ID.
+ */
 
     @Override
     @Transactional
@@ -179,6 +237,12 @@ public class TasksServiceImpl implements TasksService {
         return task;
     }
 
+    /**
+     * Retrieves all tasks from the database, including their comments and uploads.
+     * The collections are initialized to handle lazy loading.
+     *
+     * @return A list of TasksEntity with their comments and uploads.
+     */
     @Override
     @Transactional
     public List<TasksEntity> getAllTasks() {
@@ -190,6 +254,26 @@ public class TasksServiceImpl implements TasksService {
         logger.debug("Tasks fetched: {}", tasks);
         return tasks;
     }
+
+/**
+ * Retrieves a paginated list of tasks based on the specified search criteria.
+ * The method filters tasks by optional parameters such as project ID, status, 
+ * task name, task type, date range, and demand details.
+ * 
+ * @param pfId The ID of the project filter. Can be null.
+ * @param status The status of the tasks. Can be null.
+ * @param taskName The name of the task to search for. Can be null.
+ * @param taskType The type of the task. Can be null.
+ * @param startDate The start date for the task due date range. Can be null.
+ * @param endDate The end date for the task due date range. Can be null.
+ * @param dueExceeded Boolean indicating if due date has been exceeded. Can be null.
+ * @param demandId The ID of the demand associated with the task. Can be null.
+ * @param demandName The name of the demand associated with the task. Can be null.
+ * @param taskId The unique ID of a specific task. Can be null.
+ * @param pageable The pagination and sorting information.
+ * @return A page of SearchTasksResponseDto containing the filtered tasks.
+ * @throws IOException If an input or output exception occurs.
+ */
 
     @Override
     public Page<SearchTasksResponseDto> findTasksByCriteria(String pfId, Status status, String taskName,
@@ -224,6 +308,16 @@ public class TasksServiceImpl implements TasksService {
         return dto;
     }
 
+/**
+ * Retrieves files associated with the given comment type and task IDs, and returns 
+ * them as a ZIP archive. If there are no files found, the method returns null.
+ *
+ * @param commentTypeId The UUID of the comment type used to filter files.
+ * @param taskId The UUID of the task used to filter files.
+ * @return A ByteArrayOutputStream containing the ZIP archive of files, or null if no files exist.
+ * @throws IOException If an error occurs during file retrieval or ZIP creation.
+ */
+
     @Transactional
     @Override
     public ByteArrayOutputStream getFilesAsZip(UUID commentTypeId, UUID taskId) throws IOException {
@@ -241,6 +335,18 @@ public class TasksServiceImpl implements TasksService {
     }
 
 
+        /**
+         * Updates the details of a Task and adds a comment to it, optionally with file uploads.
+         * 
+         * @param taskId       The UUID of the Task to update.
+         * @param commentTypeId The UUID of the CommentType to associate the comment with.
+         * @param comment       The comment to add to the Task.
+         * @param files         The files to upload, if any.
+         * @param newDueDate    The new due date to set, if any.
+         * @param newStatus     The new status to set, if any.
+         * @param newPriority   The new priority to set, if any.
+         * @throws IOException If an error occurs while saving the Task.
+         */
     private void updateTaskDetailsAndAddComment(UUID taskId, UUID commentTypeId, String comment,
             List<MultipartFile> files, Date newDueDate, Status newStatus, Priority newPriority)
             throws IOException {
@@ -273,8 +379,8 @@ public class TasksServiceImpl implements TasksService {
             newComment.setDemand(task.getDemand());
 
             if (files != null && !files.isEmpty()) {
-                newComment.setUploads(fileUploadUtils.uploadsSetter(files, newComment));
-                fileUploadUtils.saveFile(files, fileUploadUtils.getFilesPath(files, commentType));
+                newComment.setUploads(fileUploadUtils.uploadsSetter(files, newComment, task.getDemand().getId()));
+                fileUploadUtils.saveFile(files, fileUploadUtils.getFilesPath(files, commentType, task.getDemand().getId()),commentType.getCanUploadMultipleFiles());
             }
 
             task.getComments().add(newComment);
