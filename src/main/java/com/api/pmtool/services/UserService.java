@@ -98,13 +98,17 @@ public class UserService {
         user.setStatus(userDto.getStatus());
 
         // Fetch and assign roles
-        Set<Role> roles = new HashSet<>();
-        for (UUID roleId : userDto.getRoleIds()) {
-            Role role = roleRepository.findById(roleId)
-                    .orElseThrow(() -> new IllegalArgumentException("Role not found"));
-            roles.add(role);
+        if (userDto.getRoleIds() != null) {
+            Set<Role> roles = new HashSet<>();
+            for (UUID roleId : userDto.getRoleIds()) {
+                Role role = roleRepository.findById(roleId)
+                        .orElseThrow(() -> new IllegalArgumentException("Role not found"));
+                roles.add(role);
+            }
+            user.setRoles(roles);
         }
-        user.setRoles(roles);
+
+
 
         return userRepository.save(user);
     }

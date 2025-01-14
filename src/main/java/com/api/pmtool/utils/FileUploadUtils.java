@@ -11,6 +11,8 @@ import com.api.pmtool.entity.Uploads;
 import com.api.pmtool.exception.FileStorageException;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
@@ -106,7 +108,7 @@ public class FileUploadUtils {
      * @return {@code true} if the extension matches the MIME type, {@code false}
      *         otherwise.
      */
-    public static boolean isExtensionMatchingMimeType(String extension, String mimeType) {
+    public boolean isExtensionMatchingMimeType(String extension, String mimeType) {
         switch (mimeType) {
             case "application/pdf":
                 return extension.equals("pdf");
@@ -284,5 +286,21 @@ public class FileUploadUtils {
             }
         }
         return zipOutputStream;
+    }
+
+        /**
+     * Converts a MultipartFile to a temporary File.
+     *
+     * @param file MultipartFile to be converted
+     * @return File object
+     * @throws IOException If file operations fail
+     */
+    public File convertToFile(MultipartFile file) throws IOException {
+        File tempFile = File.createTempFile("uploaded", ".pdf");
+        tempFile.deleteOnExit(); // Schedule the temp file for deletion when JVM exits
+        try (FileOutputStream fos = new FileOutputStream(tempFile)) {
+            fos.write(file.getBytes());
+        }
+        return tempFile;
     }
 }
