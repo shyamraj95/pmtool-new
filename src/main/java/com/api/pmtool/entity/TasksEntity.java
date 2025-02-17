@@ -1,6 +1,4 @@
 package com.api.pmtool.entity;
-
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -55,6 +53,8 @@ public class TasksEntity extends Auditable<UUID> {
 
     @Enumerated(EnumType.STRING)
     private Status workProgress = Status.NOT_STARTED; // Default value
+
+    private int developmentInPercentage;;
 
     @Temporal(TemporalType.DATE)
     private Date dueDate; // Task due date

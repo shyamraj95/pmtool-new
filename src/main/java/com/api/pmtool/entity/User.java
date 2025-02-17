@@ -2,7 +2,11 @@ package com.api.pmtool.entity;
 
 import java.util.UUID;
 import java.util.Set;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
+
+import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
@@ -13,6 +17,7 @@ import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.JoinTable;
 import javax.persistence.ManyToMany;
+import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.Index;
 
@@ -24,7 +29,7 @@ import com.api.pmtool.enums.Expertise;
 import com.api.pmtool.enums.Department;
 import com.api.pmtool.enums.UserStatus;
 import com.api.pmtool.enums.VendorsName;
-import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -32,45 +37,49 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "users",
-indexes = {
+@Table(name = "users", indexes = {
     @Index(name = "idx_users_pf_id", columnList = "pfId"),
 })
 public class User extends Auditable<UUID> {
-    @Id
-    @GeneratedValue(generator = "UUID")
-    @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
-    @Column(columnDefinition = "UUID")
-    private UUID id;
+  @Id
+  @GeneratedValue(generator = "UUID")
+  @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
+  @Column(columnDefinition = "UUID")
+  private UUID id;
 
     @Column(unique=true)
-    private String pfId;
+  private String pfId;
 
-    private String fullName;
+  private String fullName;
 
-  //  @JsonBackReference
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"))
-    private Set<Role> roles = new HashSet<>();
+  // @JsonBackReference
+  @ManyToMany(fetch = FetchType.EAGER)
+  @JoinTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"))
+  private Set<Role> roles = new HashSet<>();
 
-    private String mobileNumber;
-    private String email;
+  private String mobileNumber;
+  private String email;
 
-    @Enumerated(EnumType.STRING)
-    private Gender gender;
+  @Enumerated(EnumType.STRING)
+  private Gender gender;
 
-    @Enumerated(EnumType.STRING)
-    private Designation designation;
+  @Enumerated(EnumType.STRING)
+  private Designation designation;
 
-    @Enumerated(EnumType.STRING)
-    private Department department;
+  @Enumerated(EnumType.STRING)
+  private Department department;
 
-    @Enumerated(EnumType.STRING)
-    private UserStatus status;
-    
-    @Enumerated(EnumType.STRING)
-    private VendorsName vendorName;
+  @Enumerated(EnumType.STRING)
+  private UserStatus status;
 
-    @Enumerated(EnumType.STRING)
-    private Expertise expertise;
+  @Enumerated(EnumType.STRING)
+  private VendorsName vendorName;
+
+  @Enumerated(EnumType.STRING)
+  private Expertise expertise;
+
+  @JsonIgnore
+ // @JsonManagedReference
+  @OneToMany(mappedBy = "assignedTo", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = false)
+   private List<TasksEntity> tasks = new ArrayList<>();
 }

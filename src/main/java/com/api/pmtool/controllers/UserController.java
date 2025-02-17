@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.api.pmtool.dtos.TaskStatisticsCountDTO;
 import com.api.pmtool.dtos.UserDto;
 import com.api.pmtool.dtos.UsersByRoleNameResponseDTO;
 import com.api.pmtool.entity.User;
@@ -83,5 +84,14 @@ public class UserController {
     public ResponseEntity<Void> deleteUser(@PathVariable UUID id) {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/search")
+    public List<User> getUsersByTaskStatus(@RequestParam(value = "criteria", required = false) String criteria) {
+        return userService.getUsersByTaskStatus(criteria);
+    }
+    @GetMapping("/task-statistics")
+    public TaskStatisticsCountDTO fetchTaskStatistics() {
+        return userService.fetchTaskStatistics();
     }
 }

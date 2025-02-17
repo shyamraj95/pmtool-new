@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.HashSet;
 import java.util.Set;
+
+import com.api.pmtool.dtos.TaskStatisticsCountDTO;
 import com.api.pmtool.dtos.UserDto;
 import com.api.pmtool.dtos.UsersByRoleNameResponseDTO;
 import com.api.pmtool.entity.Role;
@@ -157,5 +159,12 @@ public class UserService {
 
         // Save and return updated user
         return userRepository.save(user);
+    }
+    public List<User> getUsersByTaskStatus(String criteria) {
+        return userRepository.findUsersByTaskStatistic(criteria);
+    }
+
+        public TaskStatisticsCountDTO fetchTaskStatistics() {
+        return userRepository.getTaskStatisticsCounts();
     }
 }
